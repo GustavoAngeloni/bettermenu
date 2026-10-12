@@ -155,11 +155,11 @@ export function WaiterApp({ restaurantId, serviceFeePct, userId, role, features,
       {(calls.length > 0 || readyItems.length > 0) && (
         <section className="grid gap-3 md:grid-cols-2">
           {calls.map((c) => (
-            <div key={c.id} className="flex animate-ring items-center gap-3 rounded-2xl border-2 border-red-500 bg-red-50 p-4">
-              <div className="rounded-full bg-red-500 p-2.5 text-white">
+            <div key={c.id} className="flex animate-ring flex-wrap items-center gap-3 rounded-2xl border-2 border-red-500 bg-red-50 p-4">
+              <div className="shrink-0 rounded-full bg-red-500 p-2.5 text-white">
                 {c.type === "bill" ? <Receipt className="size-5" /> : <Bell className="size-5" />}
               </div>
-              <div className="min-w-0 flex-1">
+              <div className="min-w-[10rem] flex-1">
                 <div className="font-bold">
                   Mesa {tableNumber(c.table_id)} · {c.type === "bill" ? "Pediu a conta" : "Chamou o garçom"}
                 </div>
@@ -178,11 +178,11 @@ export function WaiterApp({ restaurantId, serviceFeePct, userId, role, features,
             </div>
           ))}
           {groupBy(readyItems, (i) => i.table_id).map(([tableId, items]) => (
-            <div key={tableId} className="flex items-center gap-3 rounded-2xl border-2 border-emerald-500 bg-emerald-50 p-4">
-              <div className="rounded-full bg-emerald-500 p-2.5 text-white">
+            <div key={tableId} className="flex flex-wrap items-center gap-3 rounded-2xl border-2 border-emerald-500 bg-emerald-50 p-4">
+              <div className="shrink-0 rounded-full bg-emerald-500 p-2.5 text-white">
                 <UtensilsCrossed className="size-5" />
               </div>
-              <div className="min-w-0 flex-1">
+              <div className="min-w-[10rem] flex-1">
                 <div className="font-bold">Mesa {tableNumber(tableId)} · Pronto para servir</div>
                 <div className="text-sm text-muted">{items.map((i) => `${i.qty}× ${i.name} (${guestName(i.guest_id)})`).join(" · ")}</div>
               </div>
@@ -546,9 +546,9 @@ function TableSheet({
             const guest = floor.guests.find((x) => x.id === g.guest.id);
             return (
               <div key={g.guest.id} className={cn("rounded-2xl border p-4", g.guest.paid_at ? "border-emerald-300 bg-emerald-50/50" : "border-line")}>
-                <div className="flex items-center justify-between gap-3">
-                  <div className="font-bold">{g.guest.name}</div>
-                  <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+                  <div className="min-w-0 font-bold break-words">{g.guest.name}</div>
+                  <div className="ml-auto flex items-center gap-3">
                     <span className="text-lg font-extrabold">{formatBRL(g.totalCents)}</span>
                     <button
                       onClick={() => togglePaid(g.guest.id, !g.guest.paid_at)}

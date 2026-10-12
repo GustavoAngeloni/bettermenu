@@ -139,7 +139,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/admin"
 
 function Card({ title, children, className }: { title: string; children: React.ReactNode; className?: string }) {
   return (
-    <section className={cn("rounded-2xl bg-white p-5 shadow-sm", className)}>
+    <section className={cn("min-w-0 rounded-2xl bg-white p-4 shadow-sm sm:p-5", className)}>
       <h2 className="mb-4 font-bold">{title}</h2>
       {children}
     </section>

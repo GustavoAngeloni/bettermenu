@@ -433,7 +433,7 @@ function JoinScreen({
         <h1 className="text-2xl font-bold">{restaurant.name}</h1>
         <div className="mx-auto mt-6 inline-flex flex-col items-center rounded-3xl bg-white px-10 py-5 shadow-sm">
           <span className="text-xs font-semibold tracking-widest text-muted uppercase">{t.table}</span>
-          <span className="text-5xl font-extrabold text-brand">{tableNumber}</span>
+          <span className="mt-1 text-5xl leading-none font-extrabold text-brand">{tableNumber}</span>
         </div>
 
         <form onSubmit={submit} className="mt-8 space-y-3 text-left">

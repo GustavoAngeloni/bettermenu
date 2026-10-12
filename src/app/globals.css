@@ -35,6 +35,8 @@ html {
 body {
   background: var(--color-canvas);
   color: var(--color-ink);
+  /* Nomes longos (pratos, restaurantes) quebram em vez de vazar por cima de outros elementos. */
+  overflow-wrap: break-word;
 }
 
 .no-scrollbar::-webkit-scrollbar { display: none; }

@@ -24,7 +24,7 @@ export function StaffHeader({
   return (
     <header className={dark ? "no-print border-b border-white/10 bg-stone-900 text-white" : "no-print border-b border-line bg-white"}>
       {impersonating && (
-        <form action={exitAs} className="flex items-center justify-center gap-3 bg-violet-600 px-4 py-1.5 text-sm text-white">
+        <form action={exitAs} className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 bg-violet-600 px-4 py-1.5 text-center text-sm text-white">
           <span>
             Você está acessando <strong>{restaurant.name}</strong> como Super Admin.
           </span>
@@ -32,12 +32,12 @@ export function StaffHeader({
         </form>
       )}
       <div className="flex items-center gap-3 px-4 py-3">
-        <div className="flex size-9 items-center justify-center rounded-xl bg-brand font-bold text-white">
+        <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-brand font-bold text-white">
           {restaurant.name.charAt(0)}
         </div>
         <div className="min-w-0 flex-1">
           <div className="truncate font-bold leading-tight">{title}</div>
-          <div className={dark ? "text-xs text-white/60" : "text-xs text-muted"}>
+          <div className={dark ? "truncate text-xs text-white/60" : "truncate text-xs text-muted"}>
             {restaurant.name} · {profile.name} ({profile.role ? ROLE_LABEL[profile.role] : ""})
           </div>
         </div>
@@ -54,12 +54,25 @@ export function StaffHeader({
             </Link>
           </nav>
         )}
-        <form action={logout}>
+        <form action={logout} className="shrink-0">
           <button className={`rounded-lg p-2 ${link}`} aria-label="Sair" title="Sair">
             <LogOut className="size-5" />
           </button>
         </form>
       </div>
+      {isManager && (
+        <nav className="flex gap-1 px-3 pb-2 text-sm font-medium sm:hidden">
+          {[
+            ["/admin", "Painel"],
+            ["/garcom", "Garçom"],
+            ["/cozinha", "Cozinha"],
+          ].map(([href, label]) => (
+            <Link key={href} href={href} className={`flex-1 rounded-lg py-1.5 text-center ${dark ? "bg-white/10 text-white/80" : "bg-stone-100 text-muted"}`}>
+              {label}
+            </Link>
+          ))}
+        </nav>
+      )}
     </header>
   );
 }

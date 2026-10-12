@@ -20,7 +20,7 @@ export default function Home() {
         </Link>
       </header>
       <section className="mx-auto w-full max-w-5xl px-6 py-16 text-center md:py-24">
-        <h1 className="mx-auto max-w-3xl text-4xl font-extrabold tracking-tight md:text-6xl">
+        <h1 className="mx-auto max-w-3xl text-4xl leading-tight font-extrabold tracking-tight md:text-6xl md:leading-tight">
           Pedidos mais rápidos, <span className="text-brand">conta sem confusão.</span>
         </h1>
         <p className="mx-auto mt-5 max-w-xl text-lg text-muted">

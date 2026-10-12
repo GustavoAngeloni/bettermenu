@@ -16,11 +16,11 @@ export default async function PrintPage() {
 
   return (
     <div className="bg-white">
-      <div className="no-print flex items-center justify-between border-b border-line p-4">
+      <div className="no-print flex flex-wrap items-center justify-between gap-3 border-b border-line p-4">
         <p className="text-sm text-muted">{cards.length} cartões · use papel A4, sem margens extras</p>
         <PrintButton />
       </div>
-      <div className="mx-auto grid max-w-[210mm] grid-cols-2 gap-[6mm] p-[8mm] print:p-0">
+      <div className="mx-auto grid max-w-[210mm] gap-[6mm] p-4 sm:grid-cols-2 sm:p-[8mm] print:grid-cols-2 print:p-0">
         {cards.map((t) => (
           <div
             key={t.id}

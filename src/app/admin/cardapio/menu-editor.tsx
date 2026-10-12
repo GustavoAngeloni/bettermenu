@@ -86,16 +86,32 @@ export function MenuEditor({ restaurantId, stations, categories, items, options,
         const scheduled = features.scheduled_menu && (c.start_time || (c.days && c.days.length < 7));
         return (
           <section key={c.id} className="overflow-hidden rounded-2xl bg-white shadow-sm">
-            <header className="flex flex-wrap items-center gap-2 border-b border-line px-4 py-3">
-              <div className="mr-auto">
-                <h2 className="text-lg font-bold">{c.name}</h2>
-                {scheduled && (
-                  <p className="flex items-center gap-1 text-xs text-muted">
-                    <Clock className="size-3.5" /> {describeWindow(c.days, c.start_time, c.end_time)}
-                  </p>
-                )}
+            <header className="border-b border-line px-4 py-3">
+              <div className="flex items-start gap-2">
+                <div className="min-w-0 flex-1">
+                  <h2 className="text-lg font-bold break-words">{c.name}</h2>
+                  {scheduled && (
+                    <p className="flex items-center gap-1 text-xs text-muted">
+                      <Clock className="size-3.5 shrink-0" /> {describeWindow(c.days, c.start_time, c.end_time)}
+                    </p>
+                  )}
+                </div>
+                <div className="-mr-2 flex shrink-0 items-center">
+                  <IconButton onClick={() => moveCategory(idx, -1)} disabled={idx === 0} label="Subir">
+                    <ArrowUp className="size-4" />
+                  </IconButton>
+                  <IconButton onClick={() => moveCategory(idx, 1)} disabled={idx === categories.length - 1} label="Descer">
+                    <ArrowDown className="size-4" />
+                  </IconButton>
+                  <IconButton onClick={() => setEditingCategory(c)} label="Editar categoria">
+                    <Pencil className="size-4" />
+                  </IconButton>
+                  <IconButton onClick={() => deleteCategory(c)} label="Excluir" danger>
+                    <Trash2 className="size-4" />
+                  </IconButton>
+                </div>
               </div>
-              <label className="flex items-center gap-2 text-sm text-muted">
+              <label className="mt-1 flex items-center gap-2 text-sm text-muted">
                 Preparado em
                 <select
                   className="rounded-lg border border-line bg-white px-2 py-1 text-sm text-ink"
@@ -110,39 +126,29 @@ export function MenuEditor({ restaurantId, stations, categories, items, options,
                   ))}
                 </select>
               </label>
-              <IconButton onClick={() => moveCategory(idx, -1)} disabled={idx === 0} label="Subir">
-                <ArrowUp className="size-4" />
-              </IconButton>
-              <IconButton onClick={() => moveCategory(idx, 1)} disabled={idx === categories.length - 1} label="Descer">
-                <ArrowDown className="size-4" />
-              </IconButton>
-              <IconButton onClick={() => setEditingCategory(c)} label="Editar categoria">
-                <Pencil className="size-4" />
-              </IconButton>
-              <IconButton onClick={() => deleteCategory(c)} label="Excluir" danger>
-                <Trash2 className="size-4" />
-              </IconButton>
             </header>
 
             <div className="divide-y divide-line">
               {list.map((item) => (
-                <div key={item.id} className="flex items-center gap-4 px-4 py-3">
+                <div key={item.id} className="flex items-start gap-3 px-4 py-3 sm:items-center sm:gap-4">
                   {item.image_url ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={item.image_url} alt="" className="size-14 rounded-xl object-cover" />
+                    <img src={item.image_url} alt="" className="size-14 shrink-0 rounded-xl object-cover" />
                   ) : (
-                    <div className="flex size-14 items-center justify-center rounded-xl bg-stone-100 text-stone-400">
+                    <div className="flex size-14 shrink-0 items-center justify-center rounded-xl bg-stone-100 text-stone-400">
                       <ImagePlus className="size-5" />
                     </div>
                   )}
+                  {/* Nome e preço na mesma coluna: no celular o preço quebra para baixo do nome em vez de sobrepor. */}
                   <div className="min-w-0 flex-1">
-                    <div className={cn("font-semibold", !item.available && "text-muted")}>
-                      {item.name}
-                      {features.suggestions && item.featured && <Badge className="ml-2 bg-brand-soft text-brand">Destaque</Badge>}
-                      {features.combos && item.combo_items?.length > 0 && <Badge className="ml-2 bg-violet-100 text-violet-800">Combo</Badge>}
+                    <div className="flex flex-wrap items-baseline justify-between gap-x-3">
+                      <span className={cn("min-w-0 font-semibold break-words", !item.available && "text-muted")}>{item.name}</span>
+                      <span className="shrink-0 font-semibold tabular-nums">{formatBRL(item.price_cents)}</span>
                     </div>
-                    <div className="truncate text-sm text-muted">{item.description}</div>
-                    <div className="mt-0.5 flex flex-wrap gap-1">
+                    {item.description && <div className="line-clamp-2 text-sm text-muted sm:line-clamp-1">{item.description}</div>}
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      {features.suggestions && item.featured && <Badge className="bg-brand-soft text-brand">Destaque</Badge>}
+                      {features.combos && item.combo_items?.length > 0 && <Badge className="bg-violet-100 text-violet-800">Combo</Badge>}
                       {features.stock && item.stock_qty != null && (
                         <Badge className={item.stock_qty <= 5 ? "bg-red-100 text-red-700" : "bg-stone-100 text-stone-700"}>Estoque: {item.stock_qty}</Badge>
                       )}
@@ -156,18 +162,14 @@ export function MenuEditor({ restaurantId, stations, categories, items, options,
                           </Badge>
                         ))}
                     </div>
+                    <AvailabilityToggle available={item.available} onClick={() => toggleAvailable(item)} className="mt-2 sm:hidden" />
                   </div>
-                  <div className="font-semibold">{formatBRL(item.price_cents)}</div>
-                  <button
-                    onClick={() => toggleAvailable(item)}
-                    className={cn("w-24 rounded-full px-3 py-1 text-xs font-semibold", item.available ? "bg-emerald-100 text-emerald-800" : "bg-stone-200 text-stone-600")}
-                    title="Clique para alternar"
-                  >
-                    {item.available ? "Disponível" : "Esgotado"}
-                  </button>
-                  <IconButton onClick={() => setEditing(item)} label="Editar">
-                    <Pencil className="size-4" />
-                  </IconButton>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <AvailabilityToggle available={item.available} onClick={() => toggleAvailable(item)} className="hidden sm:inline-flex" />
+                    <IconButton onClick={() => setEditing(item)} label="Editar">
+                      <Pencil className="size-4" />
+                    </IconButton>
+                  </div>
                 </div>
               ))}
               <button
@@ -210,6 +212,22 @@ export function MenuEditor({ restaurantId, stations, categories, items, options,
         />
       )}
     </div>
+  );
+}
+
+function AvailabilityToggle({ available, onClick, className }: { available: boolean; onClick: () => void; className?: string }) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "items-center justify-center rounded-full px-3 py-1 text-xs font-semibold whitespace-nowrap sm:w-24",
+        available ? "bg-emerald-100 text-emerald-800" : "bg-stone-200 text-stone-600",
+        className,
+      )}
+      title="Toque para alternar"
+    >
+      {available ? "Disponível" : "Esgotado"}
+    </button>
   );
 }
 
