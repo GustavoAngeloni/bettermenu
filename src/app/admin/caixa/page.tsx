@@ -23,7 +23,7 @@ export default async function CashPage({ searchParams }: PageProps<"/admin/caixa
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Fechamento de caixa</h1>
+          <h1 className="font-display text-3xl font-semibold tracking-tight md:text-[2.15rem]">Fechamento de caixa</h1>
           <p className="text-sm text-muted">Mesas encerradas em {`${d}/${m}/${y}`}, com a forma de pagamento marcada pelo garçom.</p>
         </div>
         <div className="flex items-center gap-2">
@@ -31,7 +31,7 @@ export default async function CashPage({ searchParams }: PageProps<"/admin/caixa
           {features.export && (
             <a
               href={`/admin/export?tipo=caixa&dia=${day}`}
-              className="inline-flex h-11 items-center gap-2 rounded-xl border border-line bg-white px-4 text-sm font-semibold hover:bg-stone-50"
+              className="inline-flex h-11 items-center gap-2 rounded-xl border border-line bg-surface px-4 text-sm font-semibold hover:bg-surface-2"
             >
               <Download className="size-4" /> Excel
             </a>
@@ -93,7 +93,7 @@ export default async function CashPage({ searchParams }: PageProps<"/admin/caixa
         )}
       </Card>
       <p className="text-xs text-muted">
-        Dica: peça aos garçons para marcar a forma de pagamento de cada pessoa antes de liberar a mesa. <Link href="/garcom" className="text-brand">Abrir tela do garçom</Link>
+        Dica: peça aos garçons para marcar a forma de pagamento de cada pessoa antes de liberar a mesa. <Link href="/garcom" className="text-brand-fg">Abrir tela do garçom</Link>
       </p>
     </div>
   );
@@ -101,17 +101,17 @@ export default async function CashPage({ searchParams }: PageProps<"/admin/caixa
 
 function Tile({ label, value, hero }: { label: string; value: string; hero?: boolean }) {
   return (
-    <div className={hero ? "rounded-2xl bg-ink p-4 text-white shadow-sm" : "rounded-2xl bg-white p-4 shadow-sm"}>
-      <div className={hero ? "text-xs text-white/70" : "text-xs text-muted"}>{label}</div>
-      <div className="mt-1 text-2xl font-extrabold tabular-nums">{value}</div>
+    <div className={hero ? "rounded-[1.4rem] bg-ink p-5 text-canvas" : "rounded-[1.4rem] border border-line bg-surface p-5"}>
+      <div className={hero ? "text-xs font-semibold text-canvas/70" : "text-xs font-semibold text-muted"}>{label}</div>
+      <div className="mt-1 font-display text-3xl font-semibold tracking-tight tabular-nums">{value}</div>
     </div>
   );
 }
 
 function Card({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-2xl bg-white p-5 shadow-sm">
-      <h2 className="mb-4 font-bold">{title}</h2>
+    <section className="rounded-[1.4rem] border border-line bg-surface p-5">
+      <h2 className="mb-4 font-display text-xl font-semibold">{title}</h2>
       {children}
     </section>
   );

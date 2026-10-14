@@ -71,13 +71,13 @@ export function PushToggle() {
         disabled={status !== "off"}
         className={cn(
           "flex w-full items-center gap-2 rounded-xl px-4 py-2.5 text-left text-sm font-medium",
-          status === "on" ? "bg-emerald-50 text-emerald-800" : status === "off" ? "bg-brand text-white" : "bg-amber-50 text-amber-900",
+          status === "on" ? "bg-emerald-50 text-emerald-800" : status === "off" ? "bg-brand text-on-brand" : "bg-amber-50 text-amber-900",
         )}
       >
         {status === "ios-install" ? <Smartphone className="size-4 shrink-0" /> : <BellRing className="size-4 shrink-0" />}
         {text[status]}
       </button>
-      {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
+      {error && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{error}</p>}
     </div>
   );
 }

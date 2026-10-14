@@ -117,7 +117,7 @@ export function TablesManager({
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Mesas e QR Codes</h1>
+          <h1 className="font-display text-3xl font-semibold tracking-tight md:text-[2.15rem]">Mesas e QR Codes</h1>
           <p className="text-sm text-muted">
             {active.length}
             {maxTables != null && ` de ${maxTables}`} mesas ativas. Cada QR Code abre o cardápio já na mesa certa.
@@ -151,19 +151,19 @@ export function TablesManager({
       )}
 
       {sectors && (
-        <div className="rounded-2xl bg-white p-4 shadow-sm">
+        <div className="rounded-[1.4rem] border border-line bg-surface p-4">
           <div className="mb-1 font-semibold">Setores</div>
           <p className="mb-3 text-sm text-muted">Agrupe as mesas por área. Em Equipe, escolha o setor de cada garçom: ele recebe os chamados só das mesas dele.</p>
           <div className="flex flex-wrap gap-2">
             {sectors.map((s) => (
               <span key={s.id} className="flex items-center gap-1 rounded-full bg-stone-100 py-1 pr-1 pl-3 text-sm font-medium">
                 {s.name} <span className="text-muted">({active.filter((t) => t.sector_id === s.id).length})</span>
-                <button onClick={() => removeSector(s)} className="rounded-full p-1 text-muted hover:bg-white hover:text-red-600" aria-label="Remover setor">
+                <button onClick={() => removeSector(s)} className="rounded-full p-1 text-muted hover:bg-surface hover:text-red-600 dark:hover:text-red-400" aria-label="Remover setor">
                   <Trash2 className="size-3.5" />
                 </button>
               </span>
             ))}
-            <button onClick={addSector} className="flex items-center gap-1 rounded-full border border-dashed border-line px-3 py-1 text-sm text-brand">
+            <button onClick={addSector} className="flex items-center gap-1 rounded-full border border-dashed border-line px-3 py-1 text-sm text-brand-fg">
               <Plus className="size-3.5" /> Setor
             </button>
           </div>
@@ -175,16 +175,16 @@ export function TablesManager({
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {active.map((t) => (
-            <div key={t.id} className="rounded-2xl bg-white p-4 shadow-sm">
+            <div key={t.id} className="rounded-[1.4rem] border border-line bg-surface p-4">
               <div className="mb-3 flex items-center justify-between">
-                <button onClick={() => renumber(t)} className="text-xl font-extrabold hover:text-brand" title="Alterar número">
+                <button onClick={() => renumber(t)} className="text-xl font-extrabold hover:text-brand-fg" title="Alterar número">
                   Mesa {t.number}
                 </button>
-                {t.busy ? <Badge className="bg-brand-soft text-brand">Ocupada</Badge> : <Badge className="bg-stone-100 text-muted">Livre</Badge>}
+                {t.busy ? <Badge className="bg-brand-soft text-brand-fg">Ocupada</Badge> : <Badge className="bg-stone-100 text-muted">Livre</Badge>}
               </div>
               {sectors && sectors.length > 0 && (
                 <select
-                  className="mb-3 w-full rounded-lg border border-line bg-white px-2 py-1.5 text-sm"
+                  className="mb-3 w-full rounded-lg border border-line bg-surface px-2 py-1.5 text-sm"
                   value={t.sector_id ?? ""}
                   onChange={(e) => setTableSector(t, e.target.value)}
                   aria-label="Setor"
@@ -225,7 +225,7 @@ export function TablesManager({
               <button
                 key={t.id}
                 onClick={() => restore(t)}
-                className="flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-sm text-muted shadow-sm hover:text-brand"
+                className="flex items-center gap-1.5 rounded-full bg-surface px-3 py-1.5 text-sm text-muted shadow-sm hover:text-brand-fg"
               >
                 <RotateCcw className="size-3.5" /> Mesa {t.number}
               </button>
@@ -243,7 +243,7 @@ function IconBtn({ children, onClick, label, danger }: { children: React.ReactNo
       onClick={onClick}
       title={label}
       aria-label={label}
-      className={cn("rounded-lg p-2 text-muted hover:bg-stone-100 hover:text-ink", danger && "hover:bg-red-50 hover:text-red-600")}
+      className={cn("rounded-lg p-2 text-muted hover:bg-stone-100 hover:text-ink", danger && "hover:bg-red-50 hover:text-red-600 dark:hover:text-red-400")}
     >
       {children}
     </button>

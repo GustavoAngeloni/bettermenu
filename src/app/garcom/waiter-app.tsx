@@ -103,7 +103,7 @@ export function WaiterApp({ restaurantId, serviceFeePct, userId, role, features,
 
   if (!floor || !view) {
     return (
-      <div className="flex flex-1 items-center justify-center text-brand">
+      <div className="flex flex-1 items-center justify-center text-brand-fg">
         <Spinner className="size-8" />
       </div>
     );
@@ -141,8 +141,8 @@ export function WaiterApp({ restaurantId, serviceFeePct, userId, role, features,
               key={s.id}
               onClick={() => setSectorFilter(s.id)}
               className={cn(
-                "shrink-0 rounded-full px-4 py-1.5 text-sm font-semibold",
-                sectorFilter === s.id ? "bg-ink text-white" : "bg-white text-muted ring-1 ring-line",
+                "h-10 shrink-0 rounded-full px-4 text-sm font-semibold transition-colors",
+                sectorFilter === s.id ? "bg-ink text-canvas" : "bg-surface text-muted ring-1 ring-line",
               )}
             >
               {s.name}
@@ -196,15 +196,15 @@ export function WaiterApp({ restaurantId, serviceFeePct, userId, role, features,
 
       <section>
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-lg font-bold">Mesas</h2>
+          <h2 className="font-display text-2xl font-semibold">Mesas</h2>
           <div className="flex gap-3 text-xs text-muted">
-            <Legend className="bg-white ring-1 ring-line" label="Livre" />
+            <Legend className="bg-surface ring-1 ring-line" label="Livre" />
             <Legend className="bg-brand" label="Ocupada" />
             <Legend className="bg-red-500" label="Chamando" />
           </div>
         </div>
         {tables.length === 0 ? (
-          <p className="rounded-2xl bg-white p-8 text-center text-muted">Nenhuma mesa {sectorFilter === "all" ? "cadastrada" : "neste setor"}.</p>
+          <p className="rounded-2xl bg-surface p-8 text-center text-muted">Nenhuma mesa {sectorFilter === "all" ? "cadastrada" : "neste setor"}.</p>
         ) : (
           <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-6">
             {tables.map((t) => {
@@ -217,13 +217,13 @@ export function WaiterApp({ restaurantId, serviceFeePct, userId, role, features,
                   onClick={() => (v ? setOpenTableId(t.id) : features.waiter_ordering && setComposeFor(t.id))}
                   disabled={!canOpen}
                   className={cn(
-                    "flex aspect-square flex-col items-center justify-center rounded-2xl p-2 text-center transition-transform active:scale-95",
-                    !v && "bg-white text-muted ring-1 ring-line",
-                    v && !calling && "bg-brand text-white shadow-md",
+                    "flex aspect-square flex-col items-center justify-center gap-1 rounded-[1.4rem] p-2 text-center transition-transform duration-200 hover:-translate-y-0.5 active:scale-95",
+                    !v && "bg-surface text-muted ring-1 ring-line",
+                    v && !calling && "bg-brand text-on-brand shadow-md",
                     calling && "animate-ring bg-red-500 text-white shadow-md",
                   )}
                 >
-                  <span className="text-3xl font-extrabold">{t.number}</span>
+                  <span className="font-display text-4xl leading-none font-semibold">{t.number}</span>
                   {v ? (
                     <>
                       <span className="text-sm font-semibold">{formatBRL(v.bill.totalCents)}</span>
@@ -288,7 +288,7 @@ export function WaiterApp({ restaurantId, serviceFeePct, userId, role, features,
 
       {toast && (
         <div className="fixed inset-x-0 bottom-6 z-[60] flex justify-center px-4">
-          <div className="animate-slide-up rounded-full bg-ink px-5 py-3 text-sm font-medium text-white shadow-xl">{toast}</div>
+          <div className="animate-slide-up rounded-full bg-ink px-5 py-3 text-sm font-medium text-canvas shadow-xl">{toast}</div>
         </div>
       )}
     </div>
@@ -519,7 +519,7 @@ function TableSheet({
                     onClick={() => transfer(t.id)}
                     className={cn(
                       "min-w-12 rounded-xl px-3 py-2 text-sm font-bold",
-                      occupied ? "bg-brand-soft text-brand" : "bg-stone-100 hover:bg-stone-200",
+                      occupied ? "bg-brand-soft text-brand-fg" : "bg-stone-100 hover:bg-stone-200",
                     )}
                     title={occupied ? "Ocupada: as contas serão juntadas" : "Livre"}
                   >
@@ -534,7 +534,7 @@ function TableSheet({
 
       <div className="mb-4 grid grid-cols-2 rounded-xl bg-stone-100 p-1">
         {(["bill", "items"] as const).map((t) => (
-          <button key={t} onClick={() => setTab(t)} className={cn("rounded-lg py-2 text-sm font-semibold", tab === t ? "bg-white shadow-sm" : "text-muted")}>
+          <button key={t} onClick={() => setTab(t)} className={cn("rounded-lg py-2 text-sm font-semibold", tab === t ? "bg-surface shadow-sm" : "text-muted")}>
             {t === "bill" ? "Divisão da conta" : `Itens (${view.items.length})`}
           </button>
         ))}
@@ -570,7 +570,7 @@ function TableSheet({
                   <div className="mt-3 flex flex-wrap gap-2 rounded-xl bg-canvas p-2">
                     <span className="w-full text-xs font-semibold text-muted">Forma de pagamento</span>
                     {METHODS.map((m) => (
-                      <button key={m} onClick={() => pay(g.guest.id, m)} className="rounded-lg bg-white px-3 py-1.5 text-sm font-semibold shadow-sm hover:text-brand">
+                      <button key={m} onClick={() => pay(g.guest.id, m)} className="rounded-lg bg-surface px-3 py-1.5 text-sm font-semibold shadow-sm hover:text-brand-fg">
                         {PAYMENT_LABEL[m]}
                       </button>
                     ))}
@@ -642,7 +642,7 @@ function TableSheet({
                     .map((g) => (
                       <button
                         key={g.id}
-                        className="rounded-lg bg-white px-3 py-1.5 text-sm font-semibold shadow-sm hover:text-brand"
+                        className="rounded-lg bg-surface px-3 py-1.5 text-sm font-semibold shadow-sm hover:text-brand-fg"
                         onClick={() => {
                           setMoving(null);
                           patchItem(i.id, { guest_id: g.id });
@@ -668,7 +668,7 @@ function ItemAction({ onClick, icon, label, danger }: { onClick: () => void; ico
       onClick={onClick}
       className={cn(
         "flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-muted hover:bg-stone-100",
-        danger ? "hover:text-red-600" : "hover:text-ink",
+        danger ? "hover:text-red-600 dark:hover:text-red-400" : "hover:text-ink",
       )}
     >
       {icon} {label}

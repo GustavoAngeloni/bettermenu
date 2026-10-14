@@ -1,5 +1,6 @@
 import { Download, Star } from "lucide-react";
 import Link from "next/link";
+import { PageHeader } from "@/components/ui";
 import { cn } from "@/lib/cn";
 import { requireStaff } from "@/lib/auth";
 import { formatBRL } from "@/lib/money";
@@ -30,58 +31,100 @@ export default async function DashboardPage({ searchParams }: PageProps<"/admin"
   const soldNames = new Set(stats.ranking.filter((r) => r.qty > 0).map((r) => r.name));
   const neverSold = ((menu ?? []) as { name: string }[]).map((m) => m.name).filter((n) => !soldNames.has(n));
 
+  const periodLabel = PERIODS[period].label.toLowerCase();
+  const hour = Number(new Intl.DateTimeFormat("pt-BR", { hour: "numeric", hour12: false, timeZone: "America/Sao_Paulo" }).format(new Date()));
+  const greeting = hour < 12 ? "Bom dia" : hour < 18 ? "Boa tarde" : "Boa noite";
+  const metrics = [
+    { label: "Ticket médio por mesa", value: formatBRL(stats.ticketPerTable) },
+    { label: "Ticket médio por pessoa", value: formatBRL(stats.ticketPerGuest) },
+    { label: "Itens vendidos", value: String(stats.itemsSold), sub: stats.cancelledCount ? `${stats.cancelledCount} cancelados` : undefined },
+    { label: "Tempo de preparo", value: fmtMin(stats.avgPrepMin), sub: "do pedido até ficar pronto" },
+    { label: "Resposta ao chamado", value: fmtMin(stats.avgCallMin), sub: "até o garçom atender" },
+    { label: "Permanência média", value: fmtMin(stats.avgStayMin), sub: "da chegada ao pagamento" },
+    ...(features.ratings
+      ? [
+          {
+            label: "Avaliação média",
+            value: stats.ratings.count ? `${(((stats.ratings.food ?? 0) + (stats.ratings.service ?? 0)) / 2).toFixed(1)} ★` : "—",
+            sub: stats.ratings.count ? `${stats.ratings.count} avaliações` : "sem avaliações no período",
+          },
+        ]
+      : []),
+    ...(stats.discountCents > 0 ? [{ label: "Descontos e cortesias", value: formatBRL(stats.discountCents), sub: "já descontados" }] : []),
+  ];
+
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold">Estatísticas</h1>
-          <p className="text-sm text-muted">Valores de vendas sem a taxa de serviço. Itens cancelados não entram.</p>
+    <div className="space-y-8">
+      <PageHeader
+        title={
+          <>
+            {greeting}, <span className="italic">{restaurant.name}</span>
+          </>
+        }
+        description="Valores de vendas sem a taxa de serviço. Itens cancelados não entram."
+        actions={
+          <>
+            {features.export && (
+              <>
+                <a href={`/admin/export?tipo=vendas&periodo=${period}`} className="inline-flex h-10 items-center gap-1.5 rounded-full border border-line bg-surface px-4 text-sm font-semibold transition hover:border-line-strong">
+                  <Download className="size-4" /> Vendas
+                </a>
+                <a href={`/admin/export?tipo=pedidos&periodo=${period}`} className="inline-flex h-10 items-center gap-1.5 rounded-full border border-line bg-surface px-4 text-sm font-semibold transition hover:border-line-strong">
+                  <Download className="size-4" /> Pedidos
+                </a>
+              </>
+            )}
+            <div className="flex rounded-full border border-line bg-surface p-1">
+              {(Object.keys(PERIODS) as Period[]).map((p) => (
+                <Link
+                  key={p}
+                  href={`/admin?periodo=${p}`}
+                  className={cn("rounded-full px-3.5 py-1.5 text-sm font-semibold transition-colors", p === period ? "bg-ink text-canvas" : "text-muted hover:text-ink")}
+                >
+                  {PERIODS[p].label}
+                </Link>
+              ))}
+            </div>
+          </>
+        }
+      />
+
+      <section className="overflow-hidden rounded-[1.6rem] border border-line bg-surface">
+        <div className="grid lg:grid-cols-[18rem_1fr]">
+          <div className="flex flex-col justify-between gap-6 border-b border-line p-6 lg:border-r lg:border-b-0">
+            <div>
+              <div className="text-sm font-semibold text-muted">Faturamento · {periodLabel}</div>
+              <div className="mt-2 font-display text-5xl font-semibold tracking-tight tabular-nums">{formatBRL(stats.revenue)}</div>
+            </div>
+            <dl className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <dt className="text-muted">Mesas atendidas</dt>
+                <dd className="mt-0.5 text-xl font-bold tabular-nums">{stats.tablesServed}</dd>
+              </div>
+              <div>
+                <dt className="text-muted">Clientes</dt>
+                <dd className="mt-0.5 text-xl font-bold tabular-nums">{stats.guests}</dd>
+              </div>
+            </dl>
+          </div>
+          <div className="p-6">
+            {stats.byDay.length > 1 ? (
+              <RevenueChart data={stats.byDay} />
+            ) : (
+              <div className="flex h-full min-h-40 items-center justify-center text-sm text-muted">O gráfico aparece quando houver vendas em mais de um dia.</div>
+            )}
+          </div>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {features.export && (
-            <>
-              <a href={`/admin/export?tipo=vendas&periodo=${period}`} className="inline-flex items-center gap-1.5 rounded-xl bg-white px-3 py-2 text-sm font-semibold shadow-sm hover:text-brand">
-                <Download className="size-4" /> Vendas
-              </a>
-              <a href={`/admin/export?tipo=pedidos&periodo=${period}`} className="inline-flex items-center gap-1.5 rounded-xl bg-white px-3 py-2 text-sm font-semibold shadow-sm hover:text-brand">
-                <Download className="size-4" /> Pedidos
-              </a>
-            </>
-          )}
-        <div className="flex rounded-xl bg-white p-1 shadow-sm">
-          {(Object.keys(PERIODS) as Period[]).map((p) => (
-            <Link
-              key={p}
-              href={`/admin?periodo=${p}`}
-              className={cn("rounded-lg px-3 py-1.5 text-sm font-semibold", p === period ? "bg-brand text-white" : "text-muted hover:text-ink")}
-            >
-              {PERIODS[p].label}
-            </Link>
+        <dl className="-mb-px grid grid-cols-2 overflow-hidden border-t border-line sm:grid-cols-3 xl:grid-cols-4">
+          {metrics.map((m) => (
+            <div key={m.label} className="-mr-px border-r border-b border-line p-5">
+              <dt className="text-xs font-semibold text-muted">{m.label}</dt>
+              <dd className="mt-1 text-2xl font-bold tracking-tight tabular-nums">{m.value}</dd>
+              {m.sub && <dd className="mt-0.5 text-xs text-muted">{m.sub}</dd>}
+            </div>
           ))}
-        </div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Kpi label="Faturamento" value={formatBRL(stats.revenue)} hero />
-        <Kpi label="Mesas atendidas" value={String(stats.tablesServed)} sub={`${stats.guests} clientes`} />
-        <Kpi label="Ticket médio por mesa" value={formatBRL(stats.ticketPerTable)} />
-        <Kpi label="Ticket médio por pessoa" value={formatBRL(stats.ticketPerGuest)} />
-        <Kpi label="Itens vendidos" value={String(stats.itemsSold)} sub={stats.cancelledCount ? `${stats.cancelledCount} cancelados` : undefined} />
-        <Kpi label="Tempo médio de preparo" value={fmtMin(stats.avgPrepMin)} sub="do pedido até ficar pronto" />
-        <Kpi label="Tempo de resposta ao chamado" value={fmtMin(stats.avgCallMin)} sub="até o garçom atender" />
-        <Kpi label="Permanência média" value={fmtMin(stats.avgStayMin)} sub="da chegada ao pagamento" />
-        {stats.discountCents > 0 && <Kpi label="Descontos e cortesias" value={formatBRL(stats.discountCents)} sub="já descontados do faturamento" />}
-        {features.ratings && (
-          <Kpi
-            label="Avaliação média"
-            value={stats.ratings.count ? `${(((stats.ratings.food ?? 0) + (stats.ratings.service ?? 0)) / 2).toFixed(1)} ★` : "—"}
-            sub={stats.ratings.count ? `comida ${stats.ratings.food?.toFixed(1)} · atendimento ${stats.ratings.service?.toFixed(1)} · ${stats.ratings.count} avaliações` : "sem avaliações no período"}
-          />
-        )}
-      </div>
-
-      {stats.byDay.length > 1 && <RevenueChart data={stats.byDay} />}
+        </dl>
+      </section>
 
       <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
         <Ranking ranking={stats.ranking} />
@@ -139,20 +182,10 @@ export default async function DashboardPage({ searchParams }: PageProps<"/admin"
 
 function Card({ title, children, className }: { title: string; children: React.ReactNode; className?: string }) {
   return (
-    <section className={cn("rounded-2xl bg-white p-5 shadow-sm", className)}>
-      <h2 className="mb-4 font-bold">{title}</h2>
+    <section className={cn("rounded-[1.4rem] border border-line bg-surface p-5 md:p-6", className)}>
+      <h2 className="mb-4 font-display text-xl font-semibold">{title}</h2>
       {children}
     </section>
-  );
-}
-
-function Kpi({ label, value, sub, hero }: { label: string; value: string; sub?: string; hero?: boolean }) {
-  return (
-    <div className={cn("rounded-2xl p-4 shadow-sm", hero ? "bg-ink text-white" : "bg-white")}>
-      <div className={cn("text-xs font-medium", hero ? "text-white/70" : "text-muted")}>{label}</div>
-      <div className="mt-1 text-2xl font-extrabold tabular-nums">{value}</div>
-      {sub && <div className={cn("mt-0.5 text-xs", hero ? "text-white/60" : "text-muted")}>{sub}</div>}
-    </div>
   );
 }
 
@@ -160,17 +193,18 @@ function RevenueChart({ data }: { data: Stats["byDay"] }) {
   const max = Math.max(...data.map((d) => d.cents), 1);
   const labelEvery = data.length > 31 ? 7 : data.length > 10 ? 3 : 1;
   return (
-    <Card title="Faturamento por dia">
-      <div className="flex h-48 items-end gap-[2px]">
+    <div>
+      <div className="mb-4 text-sm font-semibold text-muted">Faturamento por dia</div>
+      <div className="flex h-48 items-end gap-[3px]">
         {data.map((d, i) => {
           const [, m, day] = d.day.split("-");
           return (
             <div key={d.day} className="group relative flex h-full flex-1 flex-col justify-end">
               <div
-                className="rounded-t-[4px] bg-brand/85 transition-colors group-hover:bg-brand"
-                style={{ height: `${Math.max((d.cents / max) * 100, d.cents ? 1.5 : 0)}%` }}
+                className="origin-bottom rounded-t-md bg-brand/80 transition-colors group-hover:bg-brand [animation:grow_0.8s_var(--ease-out-expo)_both]"
+                style={{ height: `${Math.max((d.cents / max) * 100, d.cents ? 1.5 : 0)}%`, animationDelay: `${i * 18}ms` }}
               />
-              <div className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-1 hidden -translate-x-1/2 rounded-lg bg-ink px-2.5 py-1.5 text-xs whitespace-nowrap text-white shadow-lg group-hover:block">
+              <div className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-1 hidden -translate-x-1/2 rounded-lg bg-ink px-2.5 py-1.5 text-xs whitespace-nowrap text-canvas shadow-lg group-hover:block">
                 {day}/{m} · <strong>{formatBRL(d.cents)}</strong>
               </div>
               <div className="absolute top-full mt-1 w-full text-center text-[10px] text-muted">{i % labelEvery === 0 ? `${day}/${m}` : ""}</div>
@@ -179,7 +213,8 @@ function RevenueChart({ data }: { data: Stats["byDay"] }) {
         })}
       </div>
       <div className="h-5 border-t border-line" />
-    </Card>
+      <style>{`@keyframes grow{from{transform:scaleY(0)}to{transform:scaleY(1)}}`}</style>
+    </div>
   );
 }
 
@@ -215,7 +250,7 @@ function Heatmap({ heat }: { heat: number[][] }) {
                       title={`${DOW[dow]} ${h}h: ${v} pedido(s)`}
                       className="h-6 min-w-6 rounded-[3px]"
                       style={{
-                        background: v ? `color-mix(in oklab, var(--color-brand) ${15 + (v / max) * 85}%, white)` : "var(--color-canvas)",
+                        background: v ? `color-mix(in oklab, var(--brand) ${15 + (v / max) * 85}%, var(--surface))` : "var(--color-canvas)",
                       }}
                     />
                   );
@@ -227,7 +262,7 @@ function Heatmap({ heat }: { heat: number[][] }) {
       </div>
       <div className="mt-3 flex items-center gap-2 text-xs text-muted">
         Menos
-        <span className="h-2.5 w-24 rounded-full" style={{ background: "linear-gradient(to right, color-mix(in oklab, var(--color-brand) 15%, white), var(--color-brand))" }} />
+        <span className="h-2.5 w-24 rounded-full" style={{ background: "linear-gradient(to right, color-mix(in oklab, var(--brand) 15%, var(--surface)), var(--brand))" }} />
         Mais
       </div>
     </Card>
@@ -257,7 +292,7 @@ function Ranking({ ranking }: { ranking: Stats["ranking"] }) {
                 <tr key={r.name}>
                   <td className="py-2 pr-3 font-medium">
                     {r.name}
-                    {r.cancelled > 0 && <span className="ml-1 text-xs text-red-600">({r.cancelled} canc.)</span>}
+                    {r.cancelled > 0 && <span className="ml-1 text-xs text-red-600 dark:text-red-400">({r.cancelled} canc.)</span>}
                   </td>
                   <td className="py-2 text-right tabular-nums">{r.qty}</td>
                   <td className="w-2/5 py-2 pl-4">

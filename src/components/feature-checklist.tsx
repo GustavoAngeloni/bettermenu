@@ -26,7 +26,7 @@ export function FeatureChecklist({ initial }: { initial?: Features }) {
             <button
               type="button"
               onClick={() => setOn({ ...on, ...Object.fromEntries(list.map((f) => [f.key, !allOn])) })}
-              className="mb-2 text-xs font-semibold text-brand"
+              className="mb-2 text-xs font-semibold text-brand-fg"
             >
               {allOn ? "Desmarcar todas" : "Marcar todas"}
             </button>
@@ -41,7 +41,7 @@ export function FeatureChecklist({ initial }: { initial?: Features }) {
                     name={`feature_${f.key}`}
                     checked={on[f.key]}
                     onChange={(e) => setOn({ ...on, [f.key]: e.target.checked })}
-                    className="mt-0.5 size-4 shrink-0 accent-[var(--color-brand)]"
+                    className="mt-0.5 size-4 shrink-0 accent-[var(--brand)]"
                   />
                   <span className="text-sm">
                     {f.label}

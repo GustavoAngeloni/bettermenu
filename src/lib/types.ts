@@ -16,6 +16,8 @@ export interface Restaurant {
   max_tables: number | null;
   paid_until: string | null;
   notes: string | null;
+  /** identidade visual; ver lib/branding.ts */
+  branding?: import("./branding").Branding | null;
 }
 
 export interface Profile {

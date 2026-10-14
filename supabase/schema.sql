@@ -312,6 +312,8 @@ alter table restaurants add column if not exists plan       text  not null defau
 alter table restaurants add column if not exists max_tables int;          -- null = ilimitado
 alter table restaurants add column if not exists paid_until date;
 alter table restaurants add column if not exists notes      text;
+-- Identidade visual (white-label): {"primary":"#hex","cover_url","tagline","font","theme"}
+alter table restaurants add column if not exists branding   jsonb not null default '{}';
 
 -- Setores: grupos de mesas atendidos por garçons específicos
 create table if not exists sectors (

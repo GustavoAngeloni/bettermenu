@@ -1,3 +1,4 @@
+import { BrandScope } from "@/components/brand";
 import { ShiftGate } from "@/components/shift-gate";
 import { StaffHeader } from "@/components/staff-header";
 import { requireStaff } from "@/lib/auth";
@@ -19,7 +20,7 @@ export default async function WaiterPage() {
   ]);
 
   return (
-    <>
+    <BrandScope branding={restaurant.branding}>
       <StaffHeader restaurant={restaurant} profile={profile} impersonating={impersonating} title="Salão" />
       <ShiftGate role="chamados e pedidos prontos">
         <WaiterApp
@@ -33,6 +34,6 @@ export default async function WaiterPage() {
           mySectorId={profile.sector_id}
         />
       </ShiftGate>
-    </>
+    </BrandScope>
   );
 }

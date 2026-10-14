@@ -13,6 +13,22 @@ Multi-restaurante: uma instalação atende vários restaurantes clientes.
 | `/admin` | Dono / gerente | Estatísticas, cardápio (fotos, adicionais, esgotado), mesas + QR Codes, equipe, taxa de serviço |
 | `/super` | Você (dono da plataforma) | Cadastrar restaurantes e o login do dono, ver vendas de cada cliente |
 | `/login` | Equipe | Código do restaurante + usuário + senha (super admin entra com email) |
+| `/demo` | Qualquer pessoa | Cardápio de demonstração funcionando sem banco. Aceita `?cor=2f7d4f&fonte=moderno&tema=dark` para mostrar a um restaurante como fica com a marca dele |
+
+## Identidade visual (white-label)
+
+Cada restaurante tem a própria marca em **Painel → Identidade visual** (`/admin/marca`, só o dono), com prévia ao vivo:
+logo, foto de capa, cor principal, tipografia dos títulos (Clássico, Moderno, Elegante, Minimalista), tema inicial do cardápio
+(automático, claro ou escuro) e uma frase de apresentação. Fica em `restaurants.branding` (jsonb); ver `src/lib/branding.ts`.
+
+A cor do restaurante vale no cardápio do cliente, no painel, no garçom, na cozinha e nos cartões de QR impressos.
+Os neutros (fundo, superfícies, linhas) ganham um leve tom da cor, e o texto sobre os botões fica branco ou escuro
+conforme o contraste. "Better Menu · by insight" aparece no rodapé do cardápio, no painel e nos cartões das mesas.
+
+Todas as telas têm **tema claro e escuro** (botão sol/lua). A escolha fica salva no aparelho; a cozinha abre no escuro.
+Os tokens de cor estão em `src/app/globals.css`.
+
+> Atualizando um banco existente: rode `npm run db:migrate` (ou cole o `supabase/schema.sql` de novo) para criar a coluna `branding`.
 
 ## Funções liga/desliga por restaurante
 
@@ -34,7 +50,7 @@ Outras ferramentas: **Entrar como** (super admin abre o painel de um restaurante
 
 ## Stack
 
-Next.js 16 (App Router) · TypeScript · Tailwind 4 · Supabase (Postgres, Auth, Realtime, Storage).
+Next.js 16 (App Router) · TypeScript · Tailwind 4 (tokens OKLCH, claro/escuro) · Supabase (Postgres, Auth, Realtime, Storage).
 
 - **Cliente** é anônimo: tudo passa pelas rotas `/api/m/[token]/*`, que usam a service role no servidor.
   O cliente é identificado por um cookie secreto por mesa.

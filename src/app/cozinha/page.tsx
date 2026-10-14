@@ -1,4 +1,6 @@
+import { BrandScope } from "@/components/brand";
 import { ShiftGate } from "@/components/shift-gate";
+import { ThemeScript } from "@/components/theme";
 import { StaffHeader } from "@/components/staff-header";
 import { requireStaff } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
@@ -22,8 +24,10 @@ export default async function KitchenPage() {
     .sort((a, b) => a.sort - b.sort || a.name.localeCompare(b.name));
 
   return (
-    <div className="flex flex-1 flex-col bg-stone-950 text-white">
-      <StaffHeader restaurant={restaurant} profile={profile} impersonating={impersonating} title="Cozinha" dark />
+    <BrandScope branding={restaurant.branding}>
+      {/* Cozinha abre no tema escuro (menos ofuscante); dá para trocar no cabeçalho */}
+      <ThemeScript fallback="dark" />
+      <StaffHeader restaurant={restaurant} profile={profile} impersonating={impersonating} title="Cozinha" />
       <ShiftGate role="novos pedidos">
         <KitchenApp
           restaurantId={restaurant.id}
@@ -33,6 +37,6 @@ export default async function KitchenPage() {
           menuItems={menuItems}
         />
       </ShiftGate>
-    </div>
+    </BrandScope>
   );
 }

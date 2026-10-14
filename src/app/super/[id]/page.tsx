@@ -30,7 +30,7 @@ export default async function RestaurantAdminPage({ params }: PageProps<"/super/
         </Link>
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold">{restaurant.name}</h1>
+            <h1 className="font-display text-3xl font-semibold tracking-tight md:text-[2.15rem]">{restaurant.name}</h1>
             <p className="text-sm text-muted">
               Código <code className="rounded bg-stone-100 px-1.5 py-0.5">{restaurant.slug}</code>
               {!restaurant.active && " · desativado"}
@@ -44,7 +44,7 @@ export default async function RestaurantAdminPage({ params }: PageProps<"/super/
 
         <EditRestaurantForm restaurant={restaurant} features={resolveFeatures(restaurant.features)} />
 
-        <section className="rounded-2xl bg-white p-5 shadow-sm">
+        <section className="rounded-[1.4rem] border border-line bg-surface p-5">
           <h2 className="mb-3 font-bold">Equipe</h2>
           <ul className="divide-y divide-line text-sm">
             {((staff ?? []) as Profile[]).map((p) => (

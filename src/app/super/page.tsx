@@ -46,7 +46,7 @@ export default async function SuperPage() {
       <main className="mx-auto max-w-6xl space-y-8 p-4 md:p-8">
         <section>
           <h1 className="mb-3 text-2xl font-bold">Restaurantes ({restaurants?.length ?? 0})</h1>
-          <div className="overflow-x-auto rounded-2xl bg-white shadow-sm">
+          <div className="overflow-x-auto rounded-[1.4rem] border border-line bg-surface">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-line text-left text-xs text-muted">
@@ -63,9 +63,9 @@ export default async function SuperPage() {
                 {((restaurants ?? []) as Restaurant[]).map((r) => {
                   const overdue = r.paid_until && r.paid_until < today;
                   return (
-                    <tr key={r.id} className={cn("hover:bg-stone-50", !r.active && "opacity-50")}>
+                    <tr key={r.id} className={cn("hover:bg-surface-2", !r.active && "opacity-50")}>
                       <td className="px-4 py-3">
-                        <Link href={`/super/${r.id}`} className="font-semibold hover:text-brand">
+                        <Link href={`/super/${r.id}`} className="font-semibold hover:text-brand-fg">
                           {r.name}
                         </Link>
                         <div className="text-xs text-muted">
@@ -85,7 +85,7 @@ export default async function SuperPage() {
                       <td className="px-4 py-3 text-right tabular-nums">{formatBRL(revenue(r.id, true))}</td>
                       <td className="px-4 py-3 text-right tabular-nums">{formatBRL(revenue(r.id))}</td>
                       <td className="px-4 py-3 text-right">
-                        <Link href={`/super/${r.id}`} className="inline-flex items-center gap-1 font-semibold text-brand">
+                        <Link href={`/super/${r.id}`} className="inline-flex items-center gap-1 font-semibold text-brand-fg">
                           Gerenciar <ChevronRight className="size-4" />
                         </Link>
                       </td>
@@ -98,8 +98,8 @@ export default async function SuperPage() {
         </section>
 
         <details className="group">
-          <summary className="flex cursor-pointer list-none items-center gap-2 text-lg font-bold">
-            <Plus className="size-5 text-brand transition-transform group-open:rotate-45" /> Novo restaurante
+          <summary className="flex cursor-pointer list-none items-center gap-2 font-display text-xl font-semibold">
+            <Plus className="size-5 text-brand-fg transition-transform group-open:rotate-45" /> Novo restaurante
           </summary>
           <p className="mt-1 mb-4 text-sm text-muted">Cria o restaurante, o login do dono, as estações Cozinha e Bar e as mesas.</p>
           <CreateRestaurantForm />

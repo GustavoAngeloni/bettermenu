@@ -102,7 +102,7 @@ export function OrderComposer({
       title={`Lançar pedido · Mesa ${tableNumber}`}
       footer={
         <div className="space-y-2">
-          {error && <p className="text-sm text-red-600">{error}</p>}
+          {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
           <Button size="lg" className="w-full justify-between" disabled={sending || lines.length === 0 || (isNewGuest && guests.length > 0 && !newName.trim())} onClick={send}>
             {sending ? <Spinner /> : <span>Enviar para a cozinha</span>}
             <span>{formatBRL(total)}</span>
@@ -119,7 +119,7 @@ export function OrderComposer({
               onClick={() => setGuestId(g.id)}
               className={cn(
                 "rounded-full border px-3.5 py-1.5 text-sm font-medium",
-                guestId === g.id ? "border-brand bg-brand text-white" : "border-line hover:border-brand",
+                guestId === g.id ? "border-brand bg-brand text-on-brand" : "border-line hover:border-brand",
               )}
             >
               {g.name}
@@ -129,7 +129,7 @@ export function OrderComposer({
             onClick={() => setGuestId(null)}
             className={cn(
               "flex items-center gap-1 rounded-full border px-3.5 py-1.5 text-sm font-medium",
-              isNewGuest ? "border-brand bg-brand text-white" : "border-dashed border-line text-brand",
+              isNewGuest ? "border-brand bg-brand text-on-brand" : "border-dashed border-line text-brand-fg",
             )}
           >
             <UserPlus className="size-4" /> Nova pessoa
@@ -154,10 +154,10 @@ export function OrderComposer({
               <span className="min-w-0 flex-1">
                 {l.item.name}
                 {l.note && <span className="block text-xs text-amber-700">“{l.note}”</span>}
-                {l.share !== "me" && <span className="block text-xs text-brand">{l.share === "all" ? "Dividido com todos" : "Dividido"}</span>}
+                {l.share !== "me" && <span className="block text-xs text-brand-fg">{l.share === "all" ? "Dividido com todos" : "Dividido"}</span>}
               </span>
               <span>{formatBRL(l.unitPrice * l.qty)}</span>
-              <button className="p-1 text-muted hover:text-red-600" onClick={() => setLines(lines.filter((x) => x.key !== l.key))} aria-label="Remover">
+              <button className="p-1 text-muted hover:text-red-600 dark:hover:text-red-400" onClick={() => setLines(lines.filter((x) => x.key !== l.key))} aria-label="Remover">
                 <Trash2 className="size-4" />
               </button>
             </div>
@@ -223,7 +223,7 @@ function ItemConfig({
   const [note, setNote] = useState("");
   const [share, setShare] = useState<Share>("me");
   const unitPrice = effectivePrice(item, features.scheduled_menu).price + options.filter((o) => optionIds.includes(o.id)).reduce((s, o) => s + o.price_cents, 0);
-  const pill = (on: boolean) => cn("rounded-full border px-3 py-1.5 text-sm font-medium", on ? "border-brand bg-brand text-white" : "border-line");
+  const pill = (on: boolean) => cn("rounded-full border px-3 py-1.5 text-sm font-medium", on ? "border-brand bg-brand text-on-brand" : "border-line");
 
   return (
     <Sheet
@@ -237,11 +237,11 @@ function ItemConfig({
       footer={
         <div className="flex items-center gap-3">
           <div className="flex items-center rounded-xl border border-line">
-            <button className="p-3 text-brand disabled:text-stone-300" disabled={qty <= 1} onClick={() => setQty(qty - 1)} aria-label="Menos">
+            <button className="p-3 text-brand-fg disabled:text-stone-300" disabled={qty <= 1} onClick={() => setQty(qty - 1)} aria-label="Menos">
               <Minus className="size-4" />
             </button>
             <span className="w-6 text-center font-semibold">{qty}</span>
-            <button className="p-3 text-brand" onClick={() => setQty(Math.min(qty + 1, 50))} aria-label="Mais">
+            <button className="p-3 text-brand-fg" onClick={() => setQty(Math.min(qty + 1, 50))} aria-label="Mais">
               <Plus className="size-4" />
             </button>
           </div>
@@ -264,7 +264,7 @@ function ItemConfig({
             <label key={o.id} className="flex items-center gap-3 px-4 py-2.5">
               <input
                 type="checkbox"
-                className="size-5 accent-[var(--color-brand)]"
+                className="size-5 accent-[var(--brand)]"
                 checked={optionIds.includes(o.id)}
                 onChange={(e) => setOptionIds(e.target.checked ? [...optionIds, o.id] : optionIds.filter((x) => x !== o.id))}
               />

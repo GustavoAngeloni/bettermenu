@@ -139,22 +139,22 @@ export function MenuImporter({ aiEnabled }: { aiEnabled: boolean }) {
       </div>
 
       {mode === "photo" ? (
-        <label className={cn("flex cursor-pointer flex-col items-center gap-2 rounded-2xl border-2 border-dashed border-line bg-white p-8 text-center hover:border-brand", busy && "pointer-events-none opacity-60")}>
-          <Sparkles className="size-8 text-brand" />
+        <label className={cn("flex cursor-pointer flex-col items-center gap-2 rounded-2xl border-2 border-dashed border-line bg-surface p-8 text-center hover:border-brand", busy && "pointer-events-none opacity-60")}>
+          <Sparkles className="size-8 text-brand-fg" />
           <span className="font-semibold">Escolher fotos (até 6)</span>
           <span className="text-sm text-muted">Fotos nítidas, de frente e bem iluminadas funcionam melhor.</span>
           <input type="file" accept="image/*" multiple className="sr-only" onChange={(e) => readPhotos(e.target.files)} />
         </label>
       ) : (
-        <div className="flex flex-wrap items-center gap-3 rounded-2xl bg-white p-5 shadow-sm">
+        <div className="flex flex-wrap items-center gap-3 rounded-[1.4rem] border border-line bg-surface p-5">
           <a
             href={`data:text/csv;charset=utf-8,${encodeURIComponent(TEMPLATE)}`}
             download="modelo-cardapio.csv"
-            className="inline-flex h-11 items-center gap-2 rounded-xl border border-line px-4 text-sm font-semibold hover:bg-stone-50"
+            className="inline-flex h-11 items-center gap-2 rounded-xl border border-line px-4 text-sm font-semibold hover:bg-surface-2"
           >
             <Download className="size-4" /> Baixar modelo
           </a>
-          <label className="inline-flex h-11 cursor-pointer items-center gap-2 rounded-xl bg-brand px-4 text-sm font-semibold text-white">
+          <label className="inline-flex h-11 cursor-pointer items-center gap-2 rounded-xl bg-brand px-4 text-sm font-semibold text-on-brand">
             <FileSpreadsheet className="size-4" /> Enviar planilha CSV
             <input type="file" accept=".csv,text/csv" className="sr-only" onChange={(e) => readCsv(e.target.files?.[0])} />
           </label>
@@ -163,7 +163,7 @@ export function MenuImporter({ aiEnabled }: { aiEnabled: boolean }) {
       )}
 
       {busy && (
-        <p className="flex items-center gap-2 text-sm font-medium text-brand">
+        <p className="flex items-center gap-2 text-sm font-medium text-brand-fg">
           <Spinner className="size-4" /> {busy}
         </p>
       )}
@@ -171,7 +171,7 @@ export function MenuImporter({ aiEnabled }: { aiEnabled: boolean }) {
       {done && <p className="rounded-xl bg-emerald-50 p-3 text-sm text-emerald-800">{done}</p>}
 
       {rows.length > 0 && (
-        <section className="rounded-2xl bg-white p-4 shadow-sm">
+        <section className="rounded-[1.4rem] border border-line bg-surface p-4">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <div>
               <h2 className="font-bold">Revise antes de salvar ({rows.length} pratos)</h2>
@@ -218,7 +218,7 @@ export function MenuImporter({ aiEnabled }: { aiEnabled: boolean }) {
                       />
                     </td>
                     <td className="pb-2">
-                      <button className="p-2 text-muted hover:text-red-600" onClick={() => setRows(rows.filter((x) => x.key !== r.key))} aria-label="Remover">
+                      <button className="p-2 text-muted hover:text-red-600 dark:hover:text-red-400" onClick={() => setRows(rows.filter((x) => x.key !== r.key))} aria-label="Remover">
                         <Trash2 className="size-4" />
                       </button>
                     </td>
@@ -253,11 +253,11 @@ function ModeCard({
       onClick={onClick}
       disabled={disabled}
       className={cn(
-        "flex items-start gap-3 rounded-2xl border-2 bg-white p-4 text-left disabled:opacity-50",
+        "flex items-start gap-3 rounded-2xl border-2 bg-surface p-4 text-left disabled:opacity-50",
         active ? "border-brand" : "border-transparent shadow-sm hover:border-line",
       )}
     >
-      <span className="rounded-xl bg-brand-soft p-2.5 text-brand">{icon}</span>
+      <span className="rounded-xl bg-brand-soft p-2.5 text-brand-fg">{icon}</span>
       <span>
         <span className="block font-semibold">{title}</span>
         <span className="text-sm text-muted">{text}</span>

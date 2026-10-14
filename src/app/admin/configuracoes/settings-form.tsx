@@ -1,9 +1,10 @@
 "use client";
 
-import { ImagePlus } from "lucide-react";
+import { Palette } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Button, Field, inputClass, Spinner } from "@/components/ui";
+import { Button, Field, inputClass, PageHeader, Spinner } from "@/components/ui";
 import { createClient } from "@/lib/supabase/client";
 import type { Restaurant } from "@/lib/types";
 
@@ -12,51 +13,39 @@ export function SettingsForm({ restaurant }: { restaurant: Restaurant }) {
   const router = useRouter();
   const [name, setName] = useState(restaurant.name);
   const [fee, setFee] = useState(String(restaurant.service_fee_pct).replace(".", ","));
-  const [logoUrl, setLogoUrl] = useState(restaurant.logo_url);
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
-
-  async function uploadLogo(file: File) {
-    const path = `${restaurant.id}/logo-${crypto.randomUUID()}.${file.name.split(".").pop() || "png"}`;
-    const { error } = await supabase.storage.from("menu").upload(path, file, { contentType: file.type });
-    if (error) return setMessage(`Erro ao enviar logo: ${error.message}`);
-    setLogoUrl(supabase.storage.from("menu").getPublicUrl(path).data.publicUrl);
-  }
+  const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
     const pct = Number.parseFloat(fee.replace(",", "."));
-    if (!Number.isFinite(pct) || pct < 0 || pct > 30) return setMessage("Taxa de serviço deve estar entre 0% e 30%");
+    if (!Number.isFinite(pct) || pct < 0 || pct > 30) return setMessage({ ok: false, text: "Taxa de serviço deve estar entre 0% e 30%" });
     setSaving(true);
-    const { error } = await supabase
-      .from("restaurants")
-      .update({ name: name.trim(), service_fee_pct: pct, logo_url: logoUrl })
-      .eq("id", restaurant.id);
+    const { error } = await supabase.from("restaurants").update({ name: name.trim(), service_fee_pct: pct }).eq("id", restaurant.id);
     setSaving(false);
-    setMessage(error ? error.message : "Configurações salvas.");
+    setMessage(error ? { ok: false, text: error.message } : { ok: true, text: "Configurações salvas." });
     router.refresh();
   }
 
   return (
-    <form onSubmit={save} className="max-w-xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Configurações</h1>
-        <p className="text-sm text-muted">Informações que aparecem para os clientes.</p>
-      </div>
+    <form onSubmit={save} className="max-w-2xl space-y-6">
+      <PageHeader title="Configurações" description="Informações do restaurante que aparecem para os clientes e na conta." />
 
-      <div className="space-y-4 rounded-2xl bg-white p-5 shadow-sm">
-        <div className="flex items-center gap-4">
-          <label className="relative flex size-20 cursor-pointer items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed border-line text-muted hover:border-brand">
-            {logoUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={logoUrl} alt="" className="absolute inset-0 size-full object-cover" />
-            ) : (
-              <ImagePlus className="size-6" />
-            )}
-            <input type="file" accept="image/*" className="sr-only" onChange={(e) => e.target.files?.[0] && uploadLogo(e.target.files[0])} />
-          </label>
-          <div className="text-sm text-muted">Logo do restaurante (quadrada)</div>
-        </div>
+      <Link
+        href="/admin/marca"
+        className="group flex items-center gap-4 rounded-[1.4rem] border border-line bg-surface p-4 transition hover:border-brand/40"
+      >
+        <span className="flex size-12 items-center justify-center rounded-2xl bg-brand text-on-brand">
+          <Palette className="size-5" />
+        </span>
+        <span className="flex-1">
+          <span className="block font-bold">Logo, cores e capa do cardápio</span>
+          <span className="text-sm text-muted">Estão na página Identidade visual, com prévia ao vivo.</span>
+        </span>
+        <span className="text-brand-fg transition-transform group-hover:translate-x-1">→</span>
+      </Link>
+
+      <div className="space-y-5 rounded-[1.4rem] border border-line bg-surface p-5 md:p-6">
         <Field label="Nome do restaurante">
           <input className={inputClass} value={name} onChange={(e) => setName(e.target.value)} required />
         </Field>
@@ -68,10 +57,12 @@ export function SettingsForm({ restaurant }: { restaurant: Restaurant }) {
         </Field>
       </div>
 
-      {message && <p className="text-sm text-sky-800">{message}</p>}
-      <Button type="submit" disabled={saving}>
-        {saving ? <Spinner /> : "Salvar"}
-      </Button>
+      <div className="flex items-center gap-4">
+        <Button type="submit" size="lg" disabled={saving}>
+          {saving ? <Spinner /> : "Salvar alterações"}
+        </Button>
+        {message && <p className={message.ok ? "text-sm font-medium text-emerald-700" : "text-sm text-red-600 dark:text-red-400"}>{message.text}</p>}
+      </div>
     </form>
   );
 }

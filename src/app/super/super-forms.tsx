@@ -58,7 +58,7 @@ export function CreateRestaurantForm() {
   }, [created]);
 
   return (
-    <form ref={formRef} action={action} className="space-y-5 rounded-2xl bg-white p-5 shadow-sm" key={formKey}>
+    <form ref={formRef} action={action} className="space-y-5 rounded-[1.4rem] border border-line bg-surface p-5" key={formKey}>
       <div className="grid gap-4 md:grid-cols-4">
         <Field label="Nome do restaurante">
           <input name="name" className={inputClass} placeholder="Cantina da Nonna" required />
@@ -105,7 +105,7 @@ export function CreateRestaurantForm() {
             Restaurante criado! O dono entra em <strong>/login</strong> com o código <strong>{created}</strong>.
           </p>
         )}
-        {result && !created && <p className="text-sm text-red-600">{result}</p>}
+        {result && !created && <p className="text-sm text-red-600 dark:text-red-400">{result}</p>}
       </div>
     </form>
   );
@@ -114,7 +114,7 @@ export function CreateRestaurantForm() {
 export function EditRestaurantForm({ restaurant, features }: { restaurant: Restaurant; features: Features }) {
   const [result, action, pending] = useActionState(updateRestaurant.bind(null, restaurant.id), null);
   return (
-    <form action={action} className="space-y-5 rounded-2xl bg-white p-5 shadow-sm">
+    <form action={action} className="space-y-5 rounded-[1.4rem] border border-line bg-surface p-5">
       <div className="grid gap-4 md:grid-cols-3">
         <Field label="Nome do restaurante">
           <input name="name" className={inputClass} defaultValue={restaurant.name} required />
@@ -139,7 +139,7 @@ export function EditRestaurantForm({ restaurant, features }: { restaurant: Resta
           {pending ? <Spinner /> : "Salvar alterações"}
         </Button>
         {result === "ok" && <p className="text-sm text-emerald-700">Salvo. As telas do restaurante já refletem as mudanças.</p>}
-        {result && result !== "ok" && <p className="text-sm text-red-600">{result}</p>}
+        {result && result !== "ok" && <p className="text-sm text-red-600 dark:text-red-400">{result}</p>}
       </div>
     </form>
   );

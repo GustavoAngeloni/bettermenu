@@ -14,7 +14,7 @@ export default async function ImportPage() {
         <ArrowLeft className="size-4" /> Cardápio
       </Link>
       <div>
-        <h1 className="text-2xl font-bold">Importar cardápio</h1>
+        <h1 className="font-display text-3xl font-semibold tracking-tight md:text-[2.15rem]">Importar cardápio</h1>
         <p className="text-sm text-muted">Cadastre vários pratos de uma vez a partir de fotos do cardápio impresso ou de uma planilha.</p>
       </div>
       <MenuImporter aiEnabled={aiImportEnabled()} />

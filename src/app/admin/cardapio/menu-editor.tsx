@@ -56,11 +56,11 @@ export function MenuEditor({ restaurantId, stations, categories, items, options,
     <div className="space-y-8">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Cardápio</h1>
+          <h1 className="font-display text-3xl font-semibold tracking-tight md:text-[2.15rem]">Cardápio</h1>
           <p className="text-sm text-muted">Pratos, preços, fotos e adicionais. As mudanças aparecem na hora para os clientes.</p>
         </div>
         <div className="flex gap-2">
-          <Link href="/admin/cardapio/importar" className="inline-flex h-11 items-center gap-2 rounded-xl border border-line bg-white px-4 text-sm font-semibold hover:bg-stone-50">
+          <Link href="/admin/cardapio/importar" className="inline-flex h-11 items-center gap-2 rounded-xl border border-line bg-surface px-4 text-sm font-semibold hover:bg-surface-2">
             <Upload className="size-4" /> Importar
           </Link>
           <Button onClick={() => setEditingCategory({ station_id: stations[0]?.id ?? null, sort: categories.length })}>
@@ -85,10 +85,10 @@ export function MenuEditor({ restaurantId, stations, categories, items, options,
         const list = items.filter((i) => i.category_id === c.id);
         const scheduled = features.scheduled_menu && (c.start_time || (c.days && c.days.length < 7));
         return (
-          <section key={c.id} className="overflow-hidden rounded-2xl bg-white shadow-sm">
+          <section key={c.id} className="overflow-hidden rounded-[1.4rem] border border-line bg-surface">
             <header className="flex flex-wrap items-center gap-2 border-b border-line px-4 py-3">
               <div className="mr-auto">
-                <h2 className="text-lg font-bold">{c.name}</h2>
+                <h2 className="font-display text-xl font-semibold">{c.name}</h2>
                 {scheduled && (
                   <p className="flex items-center gap-1 text-xs text-muted">
                     <Clock className="size-3.5" /> {describeWindow(c.days, c.start_time, c.end_time)}
@@ -98,7 +98,7 @@ export function MenuEditor({ restaurantId, stations, categories, items, options,
               <label className="flex items-center gap-2 text-sm text-muted">
                 Preparado em
                 <select
-                  className="rounded-lg border border-line bg-white px-2 py-1 text-sm text-ink"
+                  className="rounded-lg border border-line bg-surface px-2 py-1 text-sm text-ink"
                   value={c.station_id ?? ""}
                   onChange={(e) => run(supabase.from("categories").update({ station_id: e.target.value || null }).eq("id", c.id))}
                 >
@@ -138,7 +138,7 @@ export function MenuEditor({ restaurantId, stations, categories, items, options,
                   <div className="min-w-0 flex-1">
                     <div className={cn("font-semibold", !item.available && "text-muted")}>
                       {item.name}
-                      {features.suggestions && item.featured && <Badge className="ml-2 bg-brand-soft text-brand">Destaque</Badge>}
+                      {features.suggestions && item.featured && <Badge className="ml-2 bg-brand-soft text-brand-fg">Destaque</Badge>}
                       {features.combos && item.combo_items?.length > 0 && <Badge className="ml-2 bg-violet-100 text-violet-800">Combo</Badge>}
                     </div>
                     <div className="truncate text-sm text-muted">{item.description}</div>
@@ -172,7 +172,7 @@ export function MenuEditor({ restaurantId, stations, categories, items, options,
               ))}
               <button
                 onClick={() => setEditing({ category_id: c.id, available: true, sort: list.length })}
-                className="flex w-full items-center gap-2 px-4 py-3 text-sm font-semibold text-brand hover:bg-brand-soft/50"
+                className="flex w-full items-center gap-2 px-4 py-3 text-sm font-semibold text-brand-fg hover:bg-brand-soft/50"
               >
                 <Plus className="size-4" /> Adicionar prato em {c.name}
               </button>
@@ -220,7 +220,7 @@ function IconButton({ children, onClick, label, disabled, danger }: { children: 
       disabled={disabled}
       title={label}
       aria-label={label}
-      className={cn("rounded-lg p-2 text-muted hover:bg-stone-100 disabled:opacity-30", danger && "hover:bg-red-50 hover:text-red-600")}
+      className={cn("rounded-lg p-2 text-muted hover:bg-stone-100 disabled:opacity-30", danger && "hover:bg-red-50 hover:text-red-600 dark:hover:text-red-400")}
     >
       {children}
     </button>
@@ -241,19 +241,19 @@ function StationsEditor({ restaurantId, stations, onChanged }: { restaurantId: s
     onChanged();
   }
   return (
-    <div className="rounded-2xl bg-white p-4 shadow-sm">
+    <div className="rounded-[1.4rem] border border-line bg-surface p-4">
       <div className="mb-2 font-semibold">Estações de preparo</div>
       <p className="mb-3 text-sm text-muted">Cada estação tem sua própria tela de pedidos. Ex.: bebidas vão para o Bar, pratos para a Cozinha.</p>
       <div className="flex flex-wrap gap-2">
         {stations.map((s) => (
           <span key={s.id} className="flex items-center gap-1 rounded-full bg-stone-100 py-1 pr-1 pl-3 text-sm font-medium">
             {s.name}
-            <button onClick={() => remove(s)} className="rounded-full p-1 text-muted hover:bg-white hover:text-red-600" aria-label="Remover">
+            <button onClick={() => remove(s)} className="rounded-full p-1 text-muted hover:bg-surface hover:text-red-600 dark:hover:text-red-400" aria-label="Remover">
               <Trash2 className="size-3.5" />
             </button>
           </span>
         ))}
-        <button onClick={add} className="flex items-center gap-1 rounded-full border border-dashed border-line px-3 py-1 text-sm text-brand">
+        <button onClick={add} className="flex items-center gap-1 rounded-full border border-dashed border-line px-3 py-1 text-sm text-brand-fg">
           <Plus className="size-3.5" /> Estação
         </button>
       </div>
@@ -272,7 +272,7 @@ function DayPicker({ value, onChange }: { value: number[]; onChange: (d: number[
             key={d}
             type="button"
             onClick={() => onChange(on ? value.filter((x) => x !== i) : [...value, i].sort())}
-            className={cn("w-11 rounded-lg py-1.5 text-xs font-semibold", on ? "bg-brand text-white" : "bg-stone-100 text-muted")}
+            className={cn("w-11 rounded-lg py-1.5 text-xs font-semibold", on ? "bg-brand text-on-brand" : "bg-stone-100 text-muted")}
           >
             {d}
           </button>
@@ -385,7 +385,7 @@ function CategoryDialog({
             <TranslationFields value={translations} onChange={setTranslations} />
           </div>
         )}
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
       </div>
     </Sheet>
   );
@@ -505,11 +505,11 @@ function ItemDialog({
       footer={
         <div className="flex gap-3">
           {item.id && (
-            <Button variant="ghost" className="text-red-600" onClick={remove}>
+            <Button variant="ghost" className="text-red-600 dark:text-red-400" onClick={remove}>
               <Trash2 className="size-4" /> Excluir
             </Button>
           )}
-          {error && <p className="self-center text-sm text-red-600">{error}</p>}
+          {error && <p className="self-center text-sm text-red-600 dark:text-red-400">{error}</p>}
           <Button className="ml-auto" onClick={save} disabled={saving || uploading}>
             {saving ? <Spinner /> : "Salvar"}
           </Button>
@@ -527,7 +527,7 @@ function ItemDialog({
             </span>
           )}
           {uploading && (
-            <span className="absolute inset-0 flex items-center justify-center bg-white/70 text-brand">
+            <span className="absolute inset-0 flex items-center justify-center bg-white/70 text-brand-fg">
               <Spinner />
             </span>
           )}
@@ -578,12 +578,12 @@ function ItemDialog({
                 value={o.price}
                 onChange={(e) => setOpts(opts.map((x, j) => (j === i ? { ...x, price: e.target.value } : x)))}
               />
-              <button className="rounded-lg p-2 text-muted hover:text-red-600" onClick={() => setOpts(opts.filter((_, j) => j !== i))} aria-label="Remover">
+              <button className="rounded-lg p-2 text-muted hover:text-red-600 dark:hover:text-red-400" onClick={() => setOpts(opts.filter((_, j) => j !== i))} aria-label="Remover">
                 <Trash2 className="size-4" />
               </button>
             </div>
           ))}
-          <button onClick={() => setOpts([...opts, { name: "", price: "" }])} className="flex items-center gap-1 text-sm font-semibold text-brand">
+          <button onClick={() => setOpts([...opts, { name: "", price: "" }])} className="flex items-center gap-1 text-sm font-semibold text-brand-fg">
             <Plus className="size-4" /> Adicional
           </button>
         </div>
@@ -613,7 +613,7 @@ function ItemDialog({
       {features.suggestions && (
         <Section title="Destaque e sugestões">
           <label className="mb-3 flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={featured} onChange={(e) => setFeatured(e.target.checked)} className="size-4 accent-[var(--color-brand)]" />
+            <input type="checkbox" checked={featured} onChange={(e) => setFeatured(e.target.checked)} className="size-4 accent-[var(--brand)]" />
             Marcar como <strong>Destaque</strong> da casa
           </label>
           <div className="mb-1 text-sm font-medium">“Combina com” (aparece ao abrir este prato)</div>
@@ -625,7 +625,7 @@ function ItemDialog({
                   key={o.id}
                   type="button"
                   onClick={() => setPairs(on ? pairs.filter((x) => x !== o.id) : [...pairs, o.id].slice(0, 6))}
-                  className={cn("rounded-full px-3 py-1 text-xs font-medium", on ? "bg-brand text-white" : "bg-stone-100 text-muted")}
+                  className={cn("rounded-full px-3 py-1 text-xs font-medium", on ? "bg-brand text-on-brand" : "bg-stone-100 text-muted")}
                 >
                   {on && "✓ "}
                   {o.name}
@@ -684,12 +684,12 @@ function ItemDialog({
                   value={c.qty}
                   onChange={(e) => setCombo(combo.map((x, j) => (j === i ? { ...x, qty: Math.max(1, Number(e.target.value) || 1) } : x)))}
                 />
-                <button className="rounded-lg p-2 text-muted hover:text-red-600" onClick={() => setCombo(combo.filter((_, j) => j !== i))} aria-label="Remover">
+                <button className="rounded-lg p-2 text-muted hover:text-red-600 dark:hover:text-red-400" onClick={() => setCombo(combo.filter((_, j) => j !== i))} aria-label="Remover">
                   <Trash2 className="size-4" />
                 </button>
               </div>
             ))}
-            <button onClick={() => setCombo([...combo, { menu_item_id: "", name: "", qty: 1 }])} className="flex items-center gap-1 text-sm font-semibold text-brand">
+            <button onClick={() => setCombo([...combo, { menu_item_id: "", name: "", qty: 1 }])} className="flex items-center gap-1 text-sm font-semibold text-brand-fg">
               <Plus className="size-4" /> Item do combo
             </button>
           </div>

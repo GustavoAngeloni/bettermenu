@@ -1,3 +1,4 @@
+import { BetterMenuMark, ByInsight, RestaurantLogo } from "@/components/brand";
 import { requireStaff } from "@/lib/auth";
 import { appUrl, qrSvg, tableUrl } from "@/lib/qr";
 import { createClient } from "@/lib/supabase/server";
@@ -15,21 +16,33 @@ export default async function PrintPage() {
   const cards = await Promise.all(((data ?? []) as Table[]).map(async (t) => ({ ...t, svg: await qrSvg(tableUrl(base, t.qr_token)) })));
 
   return (
-    <div className="bg-white">
-      <div className="no-print flex items-center justify-between border-b border-line p-4">
-        <p className="text-sm text-muted">{cards.length} cartões · use papel A4, sem margens extras</p>
+    <div>
+      <div className="no-print mb-6 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="font-display text-3xl font-semibold tracking-tight">Cartões das mesas</h1>
+          <p className="mt-1 text-sm text-muted">{cards.length} cartões · papel A4, 6 por folha. Ative “Gráficos de fundo” na impressão para sair com as cores.</p>
+        </div>
         <PrintButton />
       </div>
-      <div className="mx-auto grid max-w-[210mm] grid-cols-2 gap-[6mm] p-[8mm] print:p-0">
+      <div className="mx-auto grid max-w-[210mm] grid-cols-2 gap-[6mm] bg-white p-[8mm] [print-color-adjust:exact] print:p-0">
         {cards.map((t) => (
-          <div
-            key={t.id}
-            className="flex h-[88mm] break-inside-avoid flex-col items-center justify-center rounded-2xl border-2 border-dashed border-stone-300 p-4 text-center"
-          >
-            <div className="text-sm font-semibold text-stone-500">{restaurant.name}</div>
-            <div className="text-3xl font-extrabold">Mesa {t.number}</div>
-            <div className="my-2 w-[45mm] [&_svg]:h-auto [&_svg]:w-full" dangerouslySetInnerHTML={{ __html: t.svg }} />
-            <div className="text-sm font-medium">Escaneie para ver o cardápio e pedir</div>
+          <div key={t.id} className="flex h-[88mm] break-inside-avoid flex-col overflow-hidden rounded-[5mm] border border-black/10 bg-white text-center text-[#16130f]">
+            <div className="flex items-center gap-[3mm] bg-brand px-[5mm] py-[3.5mm] text-left text-on-brand">
+              <RestaurantLogo name={restaurant.name} url={restaurant.logo_url} className="size-[10mm] rounded-[2.5mm] text-base ring-1 ring-white/30" />
+              <div className="min-w-0 flex-1 truncate font-display text-[5mm] leading-tight font-semibold">{restaurant.name}</div>
+              <div className="text-right leading-none">
+                <div className="text-[2.6mm] font-semibold opacity-80">Mesa</div>
+                <div className="font-display text-[8mm] font-semibold">{t.number}</div>
+              </div>
+            </div>
+            <div className="flex flex-1 flex-col items-center justify-center px-[5mm]">
+              <div className="w-[40mm] [&_svg]:h-auto [&_svg]:w-full" dangerouslySetInnerHTML={{ __html: t.svg }} />
+              <div className="mt-[2mm] font-display text-[4.4mm] font-semibold">Aponte a câmera para pedir</div>
+              <div className="text-[2.8mm] text-black/60">Cardápio, pedido e conta direto do seu celular</div>
+            </div>
+            <div className="flex items-center justify-center gap-[1.5mm] border-t border-black/5 py-[2mm] text-[2.4mm] text-black/50">
+              <BetterMenuMark className="size-[3mm] rounded-[0.7mm]" /> Better Menu · <ByInsight tone="dark" label="by" className="text-[2.4mm]" />
+            </div>
           </div>
         ))}
       </div>
