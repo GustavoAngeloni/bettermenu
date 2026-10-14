@@ -12,7 +12,7 @@ export function ImpersonationBanner({ name }: { name: string }) {
   return (
     <form action={exitAs} className="no-print flex items-center justify-center gap-3 bg-violet-600 px-4 py-2 text-sm text-white">
       <ShieldCheck className="size-4 shrink-0" />
-      <span className="truncate">
+      <span className="min-w-0 truncate">
         Você está acessando <strong>{name}</strong> como Super Admin.
       </span>
       <button className="inline-flex shrink-0 items-center gap-1 rounded-full bg-white/20 px-3 py-1 font-semibold transition hover:bg-white/30">
@@ -61,7 +61,7 @@ export function StaffHeader({
           </nav>
         )}
         <ThemeToggle />
-        <form action={logout}>
+        <form action={logout} className="shrink-0">
           <button className="flex size-10 items-center justify-center rounded-full text-muted transition hover:bg-surface-2 hover:text-ink" aria-label="Sair" title="Sair">
             <LogOut className="size-[18px]" />
           </button>
@@ -70,6 +70,20 @@ export function StaffHeader({
           <BetterMenuMark className="size-6 rounded-md opacity-80" />
         </span>
       </div>
+      {/* No celular os atalhos do dono ficam numa segunda linha (no desktop ficam no topo). */}
+      {isManager && (
+        <nav className="flex gap-1 px-3 pb-2 text-sm font-semibold sm:hidden">
+          {[
+            ["/admin", "Painel"],
+            ["/garcom", "Salão"],
+            ["/cozinha", "Cozinha"],
+          ].map(([href, label]) => (
+            <Link key={href} href={href} className="flex-1 rounded-full bg-surface-2 py-1.5 text-center text-muted transition hover:text-ink">
+              {label}
+            </Link>
+          ))}
+        </nav>
+      )}
     </header>
   );
 }

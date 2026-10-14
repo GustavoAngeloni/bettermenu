@@ -90,7 +90,7 @@ export function BrandEditor({ restaurantId, name, initialLogo, initial }: { rest
         description="O cardápio que seus clientes abrem na mesa, com a cara do seu restaurante. As mudanças aparecem na prévia na hora."
       />
 
-      <div className="mt-8 grid gap-8 xl:grid-cols-[minmax(0,1fr)_22rem]">
+      <div className="mt-8 grid gap-8 xl:grid-cols-[minmax(0,1fr)_22rem] [&>*]:min-w-0">
         <div className="space-y-5">
           <Section title="Logo e foto de capa" hint="A capa é a primeira imagem que o cliente vê ao escanear o QR Code. Use uma foto horizontal do salão ou do prato mais bonito.">
             <div className="flex flex-col gap-4 sm:flex-row">
@@ -259,7 +259,7 @@ export function BrandEditor({ restaurantId, name, initialLogo, initial }: { rest
 
 function Section({ title, hint, children }: { title: string; hint?: string; children: ReactNode }) {
   return (
-    <section className="rounded-[1.4rem] border border-line bg-surface p-5 md:p-6">
+    <section className="rounded-[1.4rem] border border-line bg-surface p-4 sm:p-5 md:p-6">
       <h2 className="font-display text-xl font-semibold">{title}</h2>
       {hint && <p className="mt-1 max-w-xl text-sm text-muted">{hint}</p>}
       <div className="mt-5">{children}</div>
@@ -331,7 +331,7 @@ function PhonePreview({
 }) {
   const coverSrc = cover ?? SAMPLE("1414235077428-338989a2e8c0");
   return (
-    <div className="mx-auto w-[20rem] rounded-[2.9rem] bg-[#111] p-2.5 shadow-float ring-1 ring-black/10">
+    <div className="mx-auto w-full max-w-[20rem] rounded-[2.9rem] bg-[#111] p-2.5 shadow-float ring-1 ring-black/10">
       <div className="relative h-[40rem] overflow-hidden rounded-[2.3rem]">
         <BrandScope branding={{ primary: primary || BM_ORANGE, font }} theme={mode} className="block h-full overflow-hidden text-[13px] transition-colors duration-500">
           <div className="relative h-44 shrink-0">

@@ -13,7 +13,7 @@ export function LivePhone() {
   const c = SHOWCASE[i];
   return (
     <div className="relative mx-auto flex flex-col items-center animate-rise [animation-delay:150ms]">
-      <div className="relative w-[19.5rem] rounded-[3rem] bg-[#0f0f10] p-2.5 shadow-[0_40px_80px_-30px_rgb(0_0_0/0.55)] ring-1 ring-black/20 sm:w-[21rem]">
+      <div className="relative w-full max-w-[19.5rem] rounded-[3rem] bg-[#0f0f10] p-2.5 shadow-[0_40px_80px_-30px_rgb(0_0_0/0.55)] ring-1 ring-black/20 sm:max-w-[21rem]">
         <span className="absolute top-5 left-1/2 z-10 h-6 w-24 -translate-x-1/2 rounded-full bg-black" />
         <div className="h-[39rem] overflow-hidden rounded-[2.4rem] bg-black sm:h-[42rem]">
           <iframe

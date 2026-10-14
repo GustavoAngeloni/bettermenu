@@ -110,7 +110,7 @@ function Tile({ label, value, hero }: { label: string; value: string; hero?: boo
 
 function Card({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-[1.4rem] border border-line bg-surface p-5">
+    <section className="min-w-0 rounded-[1.4rem] border border-line bg-surface p-4 sm:p-5">
       <h2 className="mb-4 font-display text-xl font-semibold">{title}</h2>
       {children}
     </section>

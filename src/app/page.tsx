@@ -39,11 +39,11 @@ export default function Home() {
       <section className="relative">
         <div className="pointer-events-none absolute top-20 -right-40 size-[40rem] rounded-full bg-[var(--bm)] opacity-[0.13] blur-[140px]" aria-hidden />
         <div className="mx-auto grid w-full max-w-6xl items-center gap-14 px-5 pt-14 pb-20 md:pt-20 lg:grid-cols-[1.1fr_1fr] lg:gap-8">
-          <div className="animate-rise">
+          <div className="min-w-0 animate-rise">
             <span className="inline-flex items-center gap-2 rounded-full border border-line bg-surface px-3 py-1.5 text-xs font-semibold text-muted">
               <span className="size-1.5 rounded-full bg-[var(--bm)] animate-pulse-dot" /> Cardápio digital para restaurantes
             </span>
-            <h1 className="mt-6 font-serif text-[clamp(2.6rem,6vw,4.75rem)] leading-[1.02] font-semibold tracking-[-0.025em]">
+            <h1 className="mt-6 font-serif text-[clamp(2.15rem,6vw,4.75rem)] leading-[1.12] break-words font-semibold tracking-[-0.025em]">
               O cardápio que deixa a mesa <span className="font-normal text-[var(--bm)] italic">com vontade de pedir.</span>
             </h1>
             <p className="mt-6 max-w-lg text-lg leading-relaxed text-muted">

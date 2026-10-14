@@ -24,14 +24,14 @@ export default async function PrintPage() {
         </div>
         <PrintButton />
       </div>
-      <div className="mx-auto grid max-w-[210mm] grid-cols-2 gap-[6mm] bg-white p-[8mm] [print-color-adjust:exact] print:p-0">
+      <div className="mx-auto grid max-w-[210mm] gap-[6mm] bg-white p-4 [print-color-adjust:exact] sm:grid-cols-2 sm:p-[8mm] print:grid-cols-2 print:p-0">
         {cards.map((t) => (
           <div key={t.id} className="flex h-[88mm] break-inside-avoid flex-col overflow-hidden rounded-[5mm] border border-black/10 bg-white text-center text-[#16130f]">
             <div className="flex items-center gap-[3mm] bg-brand px-[5mm] py-[3.5mm] text-left text-on-brand">
               <RestaurantLogo name={restaurant.name} url={restaurant.logo_url} className="size-[10mm] rounded-[2.5mm] text-base ring-1 ring-white/30" />
               <div className="min-w-0 flex-1 truncate font-display text-[5mm] leading-tight font-semibold">{restaurant.name}</div>
-              <div className="text-right leading-none">
-                <div className="text-[2.6mm] font-semibold opacity-80">Mesa</div>
+              <div className="shrink-0 text-right leading-none">
+                <div className="mb-[1mm] text-[2.6mm] font-semibold opacity-80">Mesa</div>
                 <div className="font-display text-[8mm] font-semibold">{t.number}</div>
               </div>
             </div>
