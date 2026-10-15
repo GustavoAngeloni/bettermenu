@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import type { Profile, Sector } from "@/lib/types";
 import { StaffManager } from "./staff-manager";
 
-export const metadata = { title: "Equipe · Better Menu" };
+export const metadata = { title: "Equipe" };
 
 export default async function StaffPage() {
   const { restaurant, profile, features } = await requireStaff(["manager"]);

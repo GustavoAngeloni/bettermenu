@@ -1,3 +1,4 @@
+import { cleanNeeds, type AccessNeed } from "@/lib/access-needs";
 import { computeBill } from "@/lib/bill";
 import type { PublicMenu, PublicMenuItem, PublicState } from "@/lib/public-table";
 import type { OrderItem } from "@/lib/types";
@@ -268,6 +269,8 @@ export function createDemoApi(): TableApi {
       }, ms);
   }
 
+  let needs: AccessNeed[] = [];
+
   function state(): PublicState {
     if (!me) return { joined: false, guests: OTHERS.map((g) => g.name) };
     const guests = [...OTHERS, me].map((g, i) => ({ id: g.id, name: g.name, paid_at: null, created_at: at(i) }));
@@ -279,6 +282,7 @@ export function createDemoApi(): TableApi {
         session: { id: "s", status: "open", opened_at: at(0) },
         meId: me.id,
         guests: guests.map((g) => ({ id: g.id, name: g.name, paid: false })),
+        myNeeds: needs,
         items: items.map((i) => ({
           id: i.id,
           guest_id: i.guest_id,
@@ -331,8 +335,8 @@ export function createDemoApi(): TableApi {
       }
       case "call": {
         const type = body.type === "bill" ? "bill" : "waiter";
-        const already = calls.some((c) => c.type === type);
-        if (!already) {
+        const already = calls.some((c) => c.type === type) && !body.message;
+        if (!calls.some((c) => c.type === type)) {
           calls.push({ type, created_at: new Date().toISOString() });
           // o "garçom" atende depois de alguns segundos
           setTimeout(() => calls.splice(calls.findIndex((c) => c.type === type), 1), 12000);
@@ -348,6 +352,10 @@ export function createDemoApi(): TableApi {
       case "rate":
         rated = true;
         return ok();
+      case "needs":
+        needs = cleanNeeds(body.needs);
+        return ok({ ok: true, needs });
     }
+    return { ok: false, data: { error: "Ação desconhecida" } };
   };
 }

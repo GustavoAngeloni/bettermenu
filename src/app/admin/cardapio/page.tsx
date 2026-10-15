@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import type { Category, ItemOption, MenuItem, Station } from "@/lib/types";
 import { MenuEditor } from "./menu-editor";
 
-export const metadata = { title: "Cardápio · Better Menu" };
+export const metadata = { title: "Cardápio" };
 
 export default async function MenuPage() {
   const { restaurant, features } = await requireStaff(["manager"]);

@@ -443,3 +443,13 @@ end $$;
 drop trigger if exists tables_limit on tables;
 create trigger tables_limit before insert or update of active on tables
   for each row execute function public.enforce_table_limit();
+
+-- =====================================================================
+-- v3 — acessibilidade no atendimento
+-- (aditivo e idempotente: pode rodar de novo sem perder dados)
+-- =====================================================================
+
+-- Mensagem escrita junto com o chamado (clientes que não falam ou não ouvem)
+alter table waiter_calls add column if not exists message text check (char_length(message) <= 600);
+-- Como o cliente prefere ser atendido: visao, fala, audicao
+alter table guests add column if not exists access_needs text[] not null default '{}';

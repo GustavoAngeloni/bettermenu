@@ -1,7 +1,7 @@
 "use client";
 
 import { X } from "lucide-react";
-import { useEffect, useRef, type ButtonHTMLAttributes, type ReactNode } from "react";
+import { useEffect, useId, useRef, type ButtonHTMLAttributes, type ReactNode } from "react";
 import { cn } from "@/lib/cn";
 
 export { cn };
@@ -59,23 +59,53 @@ export function Sheet({
   bleed?: boolean;
 }) {
   const panel = useRef<HTMLDivElement>(null);
+  const titleId = useId();
+  const closeRef = useRef(onClose);
+  useEffect(() => {
+    closeRef.current = onClose;
+  });
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    // Foco preso dentro do painel (teclado e leitor de tela) e devolvido ao botão que abriu.
+    const opener = document.activeElement as HTMLElement | null;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") return closeRef.current();
+      if (e.key !== "Tab" || !panel.current) return;
+      const focusable = [...panel.current.querySelectorAll<HTMLElement>("button, [href], input, select, textarea, [tabindex]:not([tabindex='-1'])")].filter(
+        (el) => !el.hasAttribute("disabled") && el.offsetParent !== null,
+      );
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (e.shiftKey && (document.activeElement === first || document.activeElement === panel.current)) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
     document.addEventListener("keydown", onKey);
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    panel.current?.focus({ preventScroll: true });
+    if (!panel.current?.contains(document.activeElement)) panel.current?.focus({ preventScroll: true });
     return () => {
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = prev;
+      if (opener?.isConnected) opener.focus({ preventScroll: true });
     };
-  }, [open, onClose]);
+  }, [open]);
 
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-6" role="dialog" aria-modal="true">
-      <div className="absolute inset-0 bg-black/45 backdrop-blur-[2px] animate-fade-in" onClick={onClose} />
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-6"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby={title && !bleed ? titleId : undefined}
+      aria-label={bleed && typeof title === "string" ? title : undefined}
+    >
+      <div className="absolute inset-0 bg-black/45 backdrop-blur-[2px] animate-fade-in" onClick={onClose} aria-hidden />
       <div
         ref={panel}
         tabIndex={-1}
@@ -96,7 +126,9 @@ export function Sheet({
           </button>
         ) : (
           <div className="flex items-center justify-between gap-4 px-5 pt-6 pb-3 sm:pt-5">
-            <div className="min-w-0 flex-1 font-display text-xl font-semibold text-ink">{title}</div>
+            <h2 id={titleId} className="min-w-0 flex-1 font-display text-xl font-semibold text-ink">
+              {title}
+            </h2>
             <button onClick={onClose} className="-mr-1 rounded-full p-2 text-muted transition hover:bg-surface-2 hover:text-ink" aria-label="Fechar">
               <X className="size-5" />
             </button>
@@ -120,7 +152,7 @@ export function Badge({ children, className }: { children: ReactNode; className?
 }
 
 export function Spinner({ className }: { className?: string }) {
-  return <span className={cn("inline-block size-5 animate-spin rounded-full border-2 border-current border-r-transparent", className)} />;
+  return <span role="status" aria-label="Carregando" className={cn("inline-block size-5 animate-spin rounded-full border-2 border-current border-r-transparent", className)} />;
 }
 
 export function Field({ label, children, hint }: { label: string; children: ReactNode; hint?: string }) {
@@ -176,6 +208,7 @@ export function Segmented<T extends string>({
         <button
           key={o.value}
           type="button"
+          aria-pressed={value === o.value}
           onClick={() => onChange(o.value)}
           className={cn("relative z-10 rounded-xl py-2 text-sm font-semibold transition-colors", value === o.value ? "text-ink" : "text-muted hover:text-ink")}
         >

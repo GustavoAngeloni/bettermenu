@@ -4,7 +4,7 @@ import { requireStaff } from "@/lib/auth";
 import { aiImportEnabled } from "@/lib/menu-import";
 import { MenuImporter } from "./menu-importer";
 
-export const metadata = { title: "Importar cardápio · Better Menu" };
+export const metadata = { title: "Importar cardápio" };
 
 export default async function ImportPage() {
   await requireStaff(["manager"]);

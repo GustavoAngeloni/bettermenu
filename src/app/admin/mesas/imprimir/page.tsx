@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import type { Table } from "@/lib/types";
 import { PrintButton } from "./print-button";
 
-export const metadata = { title: "Imprimir QR Codes · Better Menu" };
+export const metadata = { title: "Imprimir QR Codes" };
 
 /** Página pronta para imprimir: um cartão por mesa (6 por folha A4). */
 export default async function PrintPage() {

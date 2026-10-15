@@ -1,6 +1,7 @@
 import "server-only";
 import { cookies } from "next/headers";
 import { cache } from "react";
+import { cleanNeeds } from "./access-needs";
 import { computeBill } from "./bill";
 import { resolveFeatures } from "./features";
 import { describeWindow, effectivePrice, isCategoryOpen, localNow } from "./menu-rules";
@@ -39,6 +40,28 @@ export const loadTable = cache(async (token: string) => {
   if (!restaurant) return null;
   return { table, restaurant };
 });
+
+/** Restaurante da página pública /r/{slug} (só se ativo e com a página ligada). */
+export const loadPublicRestaurant = cache(async (slug: string) => {
+  if (!/^[a-z0-9-]{1,60}$/.test(slug)) return null;
+  const db = createAdminClient();
+  const { data } = await db.from("restaurants").select("*").eq("slug", slug).eq("active", true).maybeSingle<Restaurant>();
+  if (!data || !resolveFeatures(data.features).public_page) return null;
+  return data;
+});
+
+/** Slugs com página pública, para o sitemap. Sem banco configurado, lista vazia. */
+export async function listPublicRestaurants(): Promise<{ slug: string; created_at: string }[]> {
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY || !process.env.NEXT_PUBLIC_SUPABASE_URL) return [];
+  try {
+    const { data } = await createAdminClient().from("restaurants").select("slug, created_at, features").eq("active", true);
+    return ((data ?? []) as { slug: string; created_at: string; features: unknown }[])
+      .filter((r) => resolveFeatures(r.features).public_page)
+      .map(({ slug, created_at }) => ({ slug, created_at }));
+  } catch {
+    return [];
+  }
+}
 
 export interface PublicMenuItem {
   id: string;
@@ -191,10 +214,26 @@ export async function currentGuest(token: string, tableId: string) {
   return { guest, session };
 }
 
+/**
+ * Clientes da mesa, sem o segredo do cookie. `access_needs` chegou depois (schema v3):
+ * se o banco ainda não foi migrado, a consulta sem a coluna mantém tudo funcionando.
+ */
+async function loadGuests(sessionId: string): Promise<Guest[]> {
+  const db = createAdminClient();
+  const base = "id, session_id, name, paid_at, created_at";
+  const first = await db.from("guests").select(`${base}, access_needs`).eq("session_id", sessionId).order("created_at");
+  if (!first.error) return (first.data ?? []) as Guest[];
+  const { data } = await db.from("guests").select(base).eq("session_id", sessionId).order("created_at");
+  return (data ?? []) as Guest[];
+}
+
+/** Erro do Postgres/PostgREST de coluna inexistente (banco sem a migração mais recente). */
+export const isMissingColumn = (e: { code?: string } | null) => e?.code === "42703" || e?.code === "PGRST204";
+
 export async function loadSessionState(session: TableSession, restaurant: Restaurant, meId: string) {
   const db = createAdminClient();
-  const [{ data: guests }, { data: items }, { data: calls }, { data: rating }] = await Promise.all([
-    db.from("guests").select("id, session_id, name, paid_at, created_at").eq("session_id", session.id).order("created_at"),
+  const [guests, { data: items }, { data: calls }, { data: rating }] = await Promise.all([
+    loadGuests(session.id),
     db.from("order_items").select("*").eq("session_id", session.id).order("created_at"),
     db.from("waiter_calls").select("*").eq("session_id", session.id).eq("status", "open"),
     meId ? db.from("ratings").select("id").eq("guest_id", meId).maybeSingle() : Promise.resolve({ data: null }),
@@ -205,7 +244,7 @@ export async function loadSessionState(session: TableSession, restaurant: Restau
     ? await db.from("order_item_shares").select("order_item_id, guest_id").in("order_item_id", customIds)
     : { data: [] };
 
-  const guestList = (guests ?? []) as Guest[];
+  const guestList = guests;
   const shareList = (shares ?? []) as OrderItemShare[];
   const bill = computeBill(guestList, itemList, shareList, Number(restaurant.service_fee_pct));
 
@@ -213,6 +252,8 @@ export async function loadSessionState(session: TableSession, restaurant: Restau
     session: { id: session.id, status: session.status, opened_at: session.opened_at },
     meId,
     guests: guestList.map((g) => ({ id: g.id, name: g.name, paid: !!g.paid_at })),
+    // só o próprio cliente vê o que avisou à equipe
+    myNeeds: cleanNeeds(guestList.find((g) => g.id === meId)?.access_needs),
     items: itemList.map((i) => ({
       id: i.id,
       guest_id: i.guest_id,

@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import type { Station } from "@/lib/types";
 import { KitchenApp, type KitchenMenuItem } from "./kitchen-app";
 
-export const metadata = { title: "Cozinha · Better Menu" };
+export const metadata = { title: "Cozinha" };
 
 export default async function KitchenPage() {
   const { restaurant, profile, impersonating, features } = await requireStaff(["kitchen"]);

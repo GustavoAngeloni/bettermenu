@@ -9,7 +9,11 @@ import { CustomerApp } from "./customer-app";
 
 export async function generateMetadata({ params }: { params: Promise<{ token: string }> }): Promise<Metadata> {
   const found = await loadTable((await params).token);
-  return { title: found ? `${found.restaurant.name} · Mesa ${found.table.number}` : "Better Menu" };
+  // Mesa é privada (o token dá acesso à comanda): nunca indexar.
+  return {
+    title: { absolute: found ? `${found.restaurant.name} · Mesa ${found.table.number}` : "Better Menu" },
+    robots: { index: false, follow: false },
+  };
 }
 
 export default async function TablePage({ params }: { params: Promise<{ token: string }> }) {

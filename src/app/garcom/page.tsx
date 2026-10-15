@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import type { Sector } from "@/lib/types";
 import { WaiterApp } from "./waiter-app";
 
-export const metadata = { title: "Garçom · Better Menu" };
+export const metadata = { title: "Garçom" };
 
 export default async function WaiterPage() {
   const { restaurant, profile, impersonating, features } = await requireStaff(["waiter"]);

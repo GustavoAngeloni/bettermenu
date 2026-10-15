@@ -1,11 +1,13 @@
 import { redirect } from "next/navigation";
 import { requireStaff } from "@/lib/auth";
+import { appUrl } from "@/lib/qr";
 import { SettingsForm } from "./settings-form";
 
-export const metadata = { title: "Configurações · Better Menu" };
+export const metadata = { title: "Configurações" };
 
 export default async function SettingsPage() {
-  const { restaurant, profile } = await requireStaff(["manager"]);
+  const { restaurant, profile, features } = await requireStaff(["manager"]);
   if (profile.role !== "owner") redirect("/admin");
-  return <SettingsForm restaurant={restaurant} />;
+  const publicUrl = features.public_page ? `${await appUrl()}/r/${restaurant.slug}` : null;
+  return <SettingsForm restaurant={restaurant} publicUrl={publicUrl} />;
 }

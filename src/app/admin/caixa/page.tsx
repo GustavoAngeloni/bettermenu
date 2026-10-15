@@ -8,7 +8,7 @@ import { createClient } from "@/lib/supabase/server";
 import { formatTime } from "@/lib/time";
 import { DayPicker } from "./day-picker";
 
-export const metadata = { title: "Caixa · Better Menu" };
+export const metadata = { title: "Caixa" };
 
 export default async function CashPage({ searchParams }: PageProps<"/admin/caixa">) {
   const { restaurant, features } = await requireStaff(["manager"]);

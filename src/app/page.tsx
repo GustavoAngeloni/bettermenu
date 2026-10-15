@@ -1,7 +1,8 @@
-import { ArrowRight, BellRing, ChefHat, QrCode, Receipt } from "lucide-react";
+import { Accessibility, ArrowRight, BellRing, ChefHat, Ear, Hand, MessageSquareText, QrCode, Receipt, Type, Volume2 } from "lucide-react";
 import Link from "next/link";
-import { BetterMenuLogo, ByInsight } from "@/components/brand";
-import { ThemeToggle } from "@/components/theme";
+import { FaqItem, SiteFooter, SiteHeader } from "@/components/site-chrome";
+import { FAQ } from "@/lib/faq";
+import { faqLd, JsonLd, organizationLd, SITE, softwareLd } from "@/lib/site";
 import { LivePhone } from "./live-phone";
 
 const steps = [
@@ -18,22 +19,43 @@ const roles = [
   { who: "Para o cliente", what: "Um cardápio bonito, em três idiomas, que mostra o andamento do pedido e a conta de cada um." },
 ];
 
+const access = [
+  {
+    who: "Para quem não enxerga",
+    items: [
+      { icon: Volume2, title: "Ouvir o cardápio", text: "Uma voz lê cada prato, descrição e preço, categoria por categoria, e destaca na tela o que está lendo." },
+      { icon: Accessibility, title: "Leitor de tela de ponta a ponta", text: "Funciona com VoiceOver e TalkBack: botões com nome, preços falados, status do pedido anunciado." },
+      { icon: Type, title: "Texto grande e alto contraste", text: "Letras até 30% maiores, cores reforçadas e nada de animação para quem prefere." },
+    ],
+  },
+  {
+    who: "Para quem não ouve ou não fala",
+    items: [
+      { icon: MessageSquareText, title: "Mensagem direto para o garçom", text: "Frases prontas ou texto livre chegam no celular do garçom, até com a tela bloqueada." },
+      { icon: Hand, title: "Libras com VLibras", text: "O tradutor oficial do governo transforma qualquer texto do cardápio em Libras, com avatar." },
+      { icon: Ear, title: "Avisos que se veem e se sentem", text: "Pedido pronto e garçom a caminho chegam na tela e por vibração, nunca só por som." },
+    ],
+  },
+];
+
 export default function Home() {
+  const homeFaq = FAQ.filter((f) => f.home);
   return (
-    <main className="flex flex-1 flex-col overflow-x-clip">
-      <header className="sticky top-0 z-40 border-b border-line/60 bg-canvas/80 backdrop-blur-xl">
-        <div className="mx-auto flex w-full max-w-6xl items-center gap-4 px-5 py-3.5">
-          <BetterMenuLogo />
-          <span className="flex-1" />
-          <Link href="/demo" className="hidden text-sm font-semibold text-muted transition hover:text-ink sm:block">
-            Demonstração
-          </Link>
-          <ThemeToggle />
-          <Link href="/login" className="inline-flex h-10 items-center rounded-full bg-ink px-5 text-sm font-semibold text-canvas transition hover:opacity-90">
-            Entrar
-          </Link>
-        </div>
-      </header>
+    <>
+      <JsonLd
+        data={{
+          "@context": "https://schema.org",
+          "@graph": [
+            organizationLd(),
+            softwareLd(),
+            { "@type": "WebSite", "@id": `${SITE.url}/#site`, url: SITE.url, name: SITE.name, inLanguage: "pt-BR", publisher: { "@id": `${SITE.url}/#organizacao` } },
+            { "@type": "WebPage", "@id": `${SITE.url}/#pagina`, url: SITE.url, name: SITE.title, description: SITE.description, inLanguage: "pt-BR", about: { "@id": `${SITE.url}/#software` } },
+            faqLd(homeFaq),
+          ],
+        }}
+      />
+      <SiteHeader />
+    <main id="conteudo" className="flex flex-1 flex-col overflow-x-clip">
 
       {/* Hero */}
       <section className="relative">
@@ -68,7 +90,10 @@ export default function Home() {
       {/* Como funciona: é uma sequência real, então a ordem importa */}
       <section className="border-y border-line bg-surface">
         <div className="mx-auto w-full max-w-6xl px-5 py-20">
-          <h2 className="max-w-xl font-serif text-4xl leading-tight font-semibold tracking-tight md:text-5xl">Do QR Code à conta paga, sem papel no caminho.</h2>
+          <h2 id="como-funciona" className="max-w-xl scroll-mt-24 font-serif text-4xl leading-tight font-semibold tracking-tight md:text-5xl">
+            Do QR Code à conta paga, sem papel no caminho.
+          </h2>
+          <p className="mt-5 max-w-2xl text-lg leading-relaxed text-muted">{SITE.definition}</p>
           <ol className="mt-14 grid gap-x-10 gap-y-12 md:grid-cols-2 lg:grid-cols-4">
             {steps.map((s, i) => (
               <li key={s.title} className="relative">
@@ -106,14 +131,65 @@ export default function Home() {
         </div>
       </section>
 
-      <footer className="mt-auto border-t border-line">
-        <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-4 px-5 py-8 text-sm text-muted">
-          <BetterMenuLogo className="text-ink" markClassName="size-7" />
-          <span className="flex items-center gap-2">
-            Uma solução <ByInsight label="" className="text-sm" />
+      {/* Acessibilidade: diferencial e conteúdo para quem busca "cardápio acessível" */}
+      <section aria-labelledby="acessivel" className="relative overflow-hidden bg-[#16120f] text-white">
+        <div className="pointer-events-none absolute -bottom-40 -left-32 size-[34rem] rounded-full bg-[var(--bm)] opacity-25 blur-[130px]" aria-hidden />
+        <div className="relative mx-auto w-full max-w-6xl px-5 py-24">
+          <span className="inline-flex items-center gap-2 rounded-full border border-white/15 px-3 py-1.5 text-xs font-semibold text-white/75">
+            <Accessibility className="size-3.5" aria-hidden /> Acessibilidade
           </span>
+          <h2 id="acessivel" className="mt-6 max-w-3xl font-serif text-4xl leading-tight font-semibold tracking-tight md:text-5xl">
+            Todo mundo pede sozinho. <span className="font-normal text-[#ffb79c] italic">Inclusive quem não vê, não ouve ou não fala.</span>
+          </h2>
+          <p className="mt-5 max-w-2xl text-lg leading-relaxed text-white/70">
+            O cardápio tem um botão de acessibilidade em todas as telas. O cliente ainda pode avisar como prefere ser atendido, e o garçom recebe a orientação na mesa.
+          </p>
+          <div className="mt-14 grid gap-12 lg:grid-cols-2">
+            {access.map((col) => (
+              <div key={col.who}>
+                <h3 className="font-serif text-2xl font-semibold">{col.who}</h3>
+                <ul className="mt-6 space-y-6">
+                  {col.items.map((it) => (
+                    <li key={it.title} className="flex gap-4">
+                      <span className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-white/10 text-[#ffb79c]">
+                        <it.icon className="size-5" aria-hidden />
+                      </span>
+                      <span>
+                        <span className="block font-bold">{it.title}</span>
+                        <span className="mt-1 block leading-relaxed text-white/65">{it.text}</span>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+          <Link href="/acessibilidade" className="group mt-14 inline-flex h-12 items-center gap-2 rounded-2xl bg-white px-6 font-semibold text-[#16120f] transition hover:bg-white/90">
+            Ver todos os recursos de acessibilidade <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" aria-hidden />
+          </Link>
         </div>
-      </footer>
+      </section>
+
+      {/* Perguntas frequentes (respostas diretas: Google, assistentes de voz e IAs citam este trecho) */}
+      <section aria-labelledby="faq" className="mx-auto w-full max-w-6xl px-5 py-24">
+        <div className="grid gap-10 lg:grid-cols-[0.8fr_1.2fr]">
+          <div>
+            <h2 id="faq" className="font-serif text-4xl leading-tight font-semibold tracking-tight md:text-5xl">
+              Perguntas <span className="font-normal italic">frequentes</span>
+            </h2>
+            <Link href="/perguntas-frequentes" className="mt-5 inline-flex items-center gap-2 font-semibold text-[var(--bm)] hover:underline">
+              Ver todas as respostas <ArrowRight className="size-4" aria-hidden />
+            </Link>
+          </div>
+          <div className="border-t border-line">
+            {homeFaq.map((f) => (
+              <FaqItem key={f.q} q={f.q} a={f.a} />
+            ))}
+          </div>
+        </div>
+      </section>
     </main>
+      <SiteFooter />
+    </>
   );
 }

@@ -35,6 +35,7 @@ export const FEATURES = [
   { key: "stock", group: "Dono", label: "Controle de estoque" },
   { key: "combos", group: "Dono", label: "Combos" },
   { key: "export", group: "Dono", label: "Exportar relatórios (Excel)" },
+  { key: "public_page", group: "Dono", label: "Página pública do cardápio (Google e IAs)", hint: "Cardápio só para consulta em /r/{código}, com dados estruturados para buscadores. Pedidos continuam só pelo QR da mesa." },
 ] as const satisfies readonly { key: string; group: FeatureGroup; label: string; hint?: string }[];
 
 export type FeatureKey = (typeof FEATURES)[number]["key"];

@@ -11,7 +11,7 @@ import type { Restaurant } from "@/lib/types";
 import { CreateRestaurantForm } from "./super-forms";
 import { SuperHeader } from "./super-header";
 
-export const metadata = { title: "Super Admin · Better Menu" };
+export const metadata = { title: "Super Admin" };
 
 export default async function SuperPage() {
   const { profile } = await requireSuperadmin();

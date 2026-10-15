@@ -4,7 +4,7 @@ import { ThemeToggle } from "@/components/theme";
 import { getStaff, homeFor } from "@/lib/auth";
 import { LoginForm } from "./login-form";
 
-export const metadata = { title: "Entrar · Better Menu" };
+export const metadata = { title: "Entrar" };
 
 const PHOTOS = ["1600891964092-4316c288032e", "1571877227200-a0d98ea607e9", "1514362545857-3bc16c4c7d1b", "1625944525533-473f1a3d54e7", "1563379926898-05f4575a45d8", "1512621776951-a57141f2eefd"];
 

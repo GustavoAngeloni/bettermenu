@@ -120,6 +120,8 @@ export interface Guest {
   payment_method?: PaymentMethod | null;
   paid_cents?: number | null;
   paid_by?: string | null;
+  /** como prefere ser atendido (lib/access-needs.ts) */
+  access_needs?: string[] | null;
 }
 
 export type PaymentMethod = "credito" | "debito" | "pix" | "dinheiro" | "outro";
@@ -174,6 +176,8 @@ export interface WaiterCall {
   status: "open" | "done";
   created_at: string;
   resolved_at: string | null;
+  /** mensagem escrita pelo cliente junto com o chamado */
+  message?: string | null;
 }
 
 export const STATUS_LABEL: Record<ItemStatus, string> = {

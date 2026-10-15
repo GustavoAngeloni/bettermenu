@@ -247,6 +247,51 @@ h1, h2, h3 {
     conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) 50% / var(--tooth) 100%;
 }
 
+/* ---------------------------------------------------------------------------
+   Acessibilidade (preferências do cliente, ver src/lib/a11y.tsx)
+   --------------------------------------------------------------------------- */
+
+/* Alto contraste: texto secundário quase preto, linhas visíveis, marca mais escura */
+html[data-contrast="high"],
+html[data-contrast="high"] .brand-scope.brand-scope {
+  --muted: oklch(0.3 0 0);
+  --line: oklch(0.6 0 0);
+  --line-strong: oklch(0.4 0 0);
+  --ink: oklch(0.1 0 0);
+  --brand-fg: oklch(from var(--brand) min(l, 0.42) c h);
+}
+html[data-contrast="high"][data-theme="dark"],
+html[data-contrast="high"][data-theme="dark"] .brand-scope.brand-scope {
+  --bg: oklch(0.08 0 0);
+  --surface: oklch(0.14 0 0);
+  --ink: oklch(1 0 0);
+  --muted: oklch(0.9 0 0);
+  --line: oklch(0.55 0 0);
+  --line-strong: oklch(0.75 0 0);
+  --brand-fg: oklch(from var(--brand) max(l, 0.82) c h);
+}
+html[data-contrast="high"] :focus-visible {
+  outline: 3px solid var(--ink);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 6px var(--bg);
+}
+
+/* Destaque do prato que está sendo lido em voz alta */
+.reading {
+  outline: 3px solid var(--brand-fg);
+  outline-offset: -3px;
+  background: var(--brand-soft);
+}
+
+html[data-motion="reduce"] *,
+html[data-motion="reduce"] *::before,
+html[data-motion="reduce"] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;

@@ -3,7 +3,7 @@ import { requireStaff } from "@/lib/auth";
 import { resolveBranding } from "@/lib/branding";
 import { BrandEditor } from "./brand-editor";
 
-export const metadata = { title: "Identidade visual · Better Menu" };
+export const metadata = { title: "Identidade visual" };
 
 export default async function BrandPage() {
   const { restaurant, profile } = await requireStaff(["manager"]);

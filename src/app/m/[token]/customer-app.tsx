@@ -7,6 +7,7 @@ import {
   ClipboardList,
   Clock,
   Flame,
+  MessageSquareText,
   Minus,
   Plus,
   Receipt,
@@ -18,6 +19,7 @@ import {
   Trash2,
   Users,
   UtensilsCrossed,
+  Volume2,
   X,
 } from "lucide-react";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
@@ -25,8 +27,10 @@ import { PoweredBy, RestaurantLogo } from "@/components/brand";
 import { ThemeToggle } from "@/components/theme";
 import { Badge, Button, cn, inputClass, Segmented, Sheet, Spinner } from "@/components/ui";
 import type { Features } from "@/lib/features";
+import { prefersCalm, speak, spokenPrice, useA11yPrefs, vibrate } from "@/lib/a11y";
 import { formatBRL } from "@/lib/money";
 import type { PublicMenu, PublicMenuItem, PublicState, SessionState } from "@/lib/public-table";
+import { A11yButton, A11ySheet, MenuReader, MessageSheet, VLibras, type ReadEntry } from "./accessibility";
 import { DICTS, detectLang, tr, type Dict, type Lang } from "./i18n";
 
 type Share = "me" | "all" | string[];
@@ -47,7 +51,7 @@ type Tab = "menu" | "orders" | "bill";
 
 /** Chamadas ao servidor da mesa. No modo demonstração, são simuladas no navegador. */
 export type TableApi = (
-  action: "state" | "join" | "order" | "call" | "cancel" | "rate",
+  action: "state" | "join" | "order" | "call" | "cancel" | "rate" | "needs",
   body?: unknown,
 ) => Promise<{ ok: boolean; data: Record<string, unknown> }>;
 
@@ -74,6 +78,8 @@ interface Ctx {
   lang: Lang;
   features: Features;
   setLang?: (l: Lang) => void;
+  /** abre o painel de acessibilidade */
+  openA11y: () => void;
 }
 const AppCtx = createContext<Ctx>(null!);
 const useApp = () => useContext(AppCtx);
@@ -89,7 +95,18 @@ function httpApi(token: string): TableApi {
   };
 }
 
-const reduceMotion = () => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const reduceMotion = prefersCalm;
+
+/** Texto falado de um prato: nome, descrição, selos e preço. */
+function spokenItem(t: Dict, lang: Lang, item: PublicMenuItem) {
+  const { name, description } = tr(lang, item);
+  const parts = [name];
+  if (description) parts.push(description);
+  if (item.combo.length) parts.push(`${t.comboIncludes}: ${item.combo.join(", ")}`);
+  if (item.tags.length) parts.push(item.tags.map((tag) => t.tags[tag] ?? tag).join(", "));
+  parts.push(item.available ? spokenPrice(item.price_cents, lang) : t.soldOut);
+  return parts.join(". ");
+}
 
 export function CustomerApp({ token, tableNumber, restaurant, menu, features, initialState, api: apiOverride }: Props) {
   const api = useMemo(() => apiOverride ?? httpApi(token), [apiOverride, token]);
@@ -106,6 +123,14 @@ export function CustomerApp({ token, tableNumber, restaurant, menu, features, in
   const [sent, setSent] = useState(false);
   const [lang, setLangState] = useState<Lang>("pt");
   const cartButton = useRef<HTMLButtonElement>(null);
+  const [prefs, updatePrefs] = useA11yPrefs();
+  const [a11yOpen, setA11yOpen] = useState(false);
+  const [messageOpen, setMessageOpen] = useState(false);
+  const [reading, setReading] = useState<ReadEntry[] | null>(null);
+  const prefsRef = useRef(prefs);
+  useEffect(() => {
+    prefsRef.current = prefs;
+  });
 
   // Idioma: lido depois da hidratação (o servidor sempre renderiza em português).
   useEffect(() => {
@@ -119,10 +144,26 @@ export function CustomerApp({ token, tableNumber, restaurant, menu, features, in
     } catch {}
   }, []);
   const t = DICTS[lang];
-  const ctx = useMemo(() => ({ t, lang, features, setLang: features.languages ? setLang : undefined }), [t, lang, features, setLang]);
+  const openA11y = useCallback(() => setA11yOpen(true), []);
+  const ctx = useMemo(
+    () => ({ t, lang, features, setLang: features.languages ? setLang : undefined, openA11y }),
+    [t, lang, features, setLang, openA11y],
+  );
+
+  // Leitores de tela pronunciam conforme o idioma da página.
+  useEffect(() => {
+    document.documentElement.lang = lang === "pt" ? "pt-BR" : lang;
+  }, [lang]);
 
   const allItems = useMemo(() => menu.categories.flatMap((c) => c.items), [menu]);
-  const notify = useCallback((text: string) => setToast({ id: Date.now(), text }), []);
+  /** Aviso na tela (lido pelo leitor de tela) e, se o cliente pediu, falado em voz alta. */
+  const notify = useCallback(
+    (text: string) => {
+      setToast({ id: Date.now(), text });
+      if (prefsRef.current.speak) speak(text.replace(/\p{Extended_Pictographic}/gu, ""), lang);
+    },
+    [lang],
+  );
 
   const refresh = useCallback(async () => {
     const res = await api("state");
@@ -147,12 +188,77 @@ export function CustomerApp({ token, tableNumber, restaurant, menu, features, in
   }, [toast]);
 
   const state = data?.joined ? data.state : null;
+
+  // Pedido ficou pronto / garçom atendeu: aviso visual, por voz e por vibração
+  // (quem não ouve não escuta o garçom chamando; quem não vê não vê a tela mudar).
+  const seen = useRef<{ ready: Set<string>; calls: Set<string> } | null>(null);
+  useEffect(() => {
+    if (!state) return;
+    const ready = new Set(state.items.filter((i) => i.guest_id === state.meId && (i.status === "ready" || i.status === "delivered")).map((i) => i.id));
+    const calls = new Set<string>(state.openCalls.map((c) => c.type));
+    const prev = seen.current;
+    seen.current = { ready, calls };
+    if (!prev) return;
+    const newlyReady = state.items.filter((i) => ready.has(i.id) && !prev.ready.has(i.id) && i.status === "ready");
+    if (newlyReady.length) {
+      notify(t.readyNow(newlyReady.map((i) => i.name).join(", ")));
+      vibrate([220, 120, 220]);
+    } else if ([...prev.calls].some((c) => !calls.has(c))) {
+      notify(t.callSeen);
+      vibrate(160);
+    }
+  }, [state, notify, t]);
   const cartCount = cart.reduce((n, l) => n + l.qty, 0);
   const cartTotal = cart.reduce((n, l) => n + l.qty * l.unitPrice, 0);
+
+  async function saveNeeds(needs: string[]) {
+    const res = await api("needs", { needs });
+    notify(res.ok ? t.needsSaved : String(res.data.error ?? "Erro"));
+    refresh();
+  }
+
+  /** "Ouvir o cardápio": categoria por categoria, prato por prato. */
+  function listenMenu() {
+    const entries: ReadEntry[] = [];
+    for (const c of menu.categories) {
+      const cat = tr(lang, c).name;
+      entries.push({ elementId: `cat-${c.id}`, text: c.window && !c.open ? `${cat}. ${c.window}` : cat, label: cat });
+      for (const i of c.items) entries.push({ elementId: `item-${i.id}`, text: spokenItem(t, lang, i), label: tr(lang, i).name });
+    }
+    setA11yOpen(false);
+    setTab("menu");
+    setReading(entries);
+  }
+
+  const live = data.joined && !data.closed ? data.state : null;
+  const a11yLayer = (
+    <>
+      <A11ySheet
+        open={a11yOpen}
+        onClose={() => setA11yOpen(false)}
+        t={t}
+        prefs={prefs}
+        update={updatePrefs}
+        needs={live?.myNeeds}
+        onNeeds={saveNeeds}
+        onListen={live && menu.categories.length ? listenMenu : undefined}
+        onMessage={
+          live
+            ? () => {
+                setA11yOpen(false);
+                setMessageOpen(true);
+              }
+            : undefined
+        }
+      />
+      <VLibras enabled={prefs.libras} />
+    </>
+  );
 
   if (!data.joined || rejoin) {
     return (
       <AppCtx.Provider value={ctx}>
+        {a11yLayer}
         <JoinScreen
           api={api}
           tableNumber={tableNumber}
@@ -171,6 +277,7 @@ export function CustomerApp({ token, tableNumber, restaurant, menu, features, in
   if (data.closed) {
     return (
       <AppCtx.Provider value={ctx}>
+        {a11yLayer}
         <ClosedScreen api={api} restaurant={restaurant} state={data.state} onNewVisit={() => setRejoin(true)} onRated={refresh} />
       </AppCtx.Provider>
     );
@@ -191,6 +298,19 @@ export function CustomerApp({ token, tableNumber, restaurant, menu, features, in
     notify(res.data.already ? t.waiterNotified : type === "bill" ? t.billRequested : t.waiterOnWay);
     refresh();
   }
+
+  async function sendMessage(message: string) {
+    const res = await api("call", { type: "waiter", message });
+    if (!res.ok) {
+      notify(String(res.data.error ?? "Erro"));
+      return false;
+    }
+    notify(t.messageSent);
+    vibrate(80);
+    refresh();
+    return true;
+  }
+
 
   function goTab(next: Tab) {
     setTab(next);
@@ -243,6 +363,13 @@ export function CustomerApp({ token, tableNumber, restaurant, menu, features, in
   return (
     <AppCtx.Provider value={ctx}>
       <div className="mx-auto flex w-full max-w-xl flex-1 flex-col pb-44">
+        <a
+          href={tab === "menu" ? "#lista" : "#conteudo"}
+          className="sr-only z-[90] rounded-full bg-ink px-5 py-3 font-semibold text-canvas focus:not-sr-only focus:fixed focus:top-3 focus:left-3"
+        >
+          {t.skipToMenu}
+        </a>
+        <main id="conteudo" tabIndex={-1} className="outline-none">
         {tab === "menu" ? (
           <MenuTab
             restaurant={restaurant}
@@ -270,6 +397,7 @@ export function CustomerApp({ token, tableNumber, restaurant, menu, features, in
             billRequested={activeCalls.has("bill")}
           />
         )}
+        </main>
 
         <PoweredBy className="mx-auto mt-14" />
 
@@ -283,6 +411,8 @@ export function CustomerApp({ token, tableNumber, restaurant, menu, features, in
           <button
             ref={cartButton}
             onClick={() => setCartOpen(true)}
+            tabIndex={cartCount > 0 && tab === "menu" && features.customer_ordering ? 0 : -1}
+            aria-hidden={!(cartCount > 0 && tab === "menu" && features.customer_ordering)}
             className="flex h-16 w-full items-center gap-3 rounded-[1.4rem] bg-brand pr-5 pl-2.5 text-on-brand shadow-float transition-transform active:scale-[0.98]"
           >
             <span key={cartCount} className="flex size-11 items-center justify-center rounded-2xl bg-black/15 text-base font-bold animate-pop">
@@ -298,10 +428,10 @@ export function CustomerApp({ token, tableNumber, restaurant, menu, features, in
           </button>
         </div>
 
-        <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface/85 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl backdrop-saturate-150">
+        <nav aria-label={t.menu} className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface/85 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl backdrop-saturate-150">
           <div className={cn("mx-auto grid max-w-xl px-2", features.bill_view ? "grid-cols-3" : "grid-cols-2")}>
             <NavButton active={tab === "menu"} onClick={() => goTab("menu")} icon={<UtensilsCrossed />} label={t.menu} />
-            <NavButton active={tab === "orders"} onClick={() => goTab("orders")} icon={<ClipboardList />} label={t.orders} badge={myActiveItems || undefined} />
+            <NavButton active={tab === "orders"} onClick={() => goTab("orders")} icon={<ClipboardList />} label={t.orders} badge={myActiveItems || undefined} badgeLabel={t.activeOrders(myActiveItems)} />
             {features.bill_view && <NavButton active={tab === "bill"} onClick={() => goTab("bill")} icon={<Receipt />} label={t.bill} />}
           </div>
         </nav>
@@ -363,12 +493,26 @@ export function CustomerApp({ token, tableNumber, restaurant, menu, features, in
                 onClick={() => call("bill")}
               />
             )}
+            <CallOption
+              icon={<MessageSquareText className="size-6" />}
+              title={t.writeMessage}
+              hint={t.writeHint}
+              active={false}
+              onClick={() => {
+                setCallOpen(false);
+                setMessageOpen(true);
+              }}
+            />
           </div>
         </Sheet>
 
+        <MessageSheet open={messageOpen} onClose={() => setMessageOpen(false)} t={t} lang={lang} canSend={features.call_waiter} onSend={sendMessage} />
+        {reading && <MenuReader entries={reading} lang={lang} t={t} onClose={() => setReading(null)} />}
+        {a11yLayer}
+
         <Sheet open={!!cancelling} onClose={() => setCancelling(null)} title={cancelling ? t.cancelConfirm(cancelling.name) : ""}>
           <div className="flex gap-3 pt-2">
-            <Button variant="secondary" size="lg" className="flex-1" onClick={() => setCancelling(null)} aria-label="Voltar">
+            <Button variant="secondary" size="lg" className="flex-1" onClick={() => setCancelling(null)} aria-label={t.back}>
               <X className="size-5" />
             </Button>
             <Button variant="danger" size="lg" className="flex-[2]" onClick={() => cancelling && cancelItem(cancelling)}>
@@ -494,7 +638,21 @@ function CallOption({ icon, title, hint, active, onClick }: { icon: React.ReactN
   );
 }
 
-function NavButton({ active, onClick, icon, label, badge }: { active: boolean; onClick: () => void; icon: React.ReactNode; label: string; badge?: number }) {
+function NavButton({
+  active,
+  onClick,
+  icon,
+  label,
+  badge,
+  badgeLabel,
+}: {
+  active: boolean;
+  onClick: () => void;
+  icon: React.ReactNode;
+  label: string;
+  badge?: number;
+  badgeLabel?: string;
+}) {
   return (
     <button
       onClick={onClick}
@@ -504,12 +662,13 @@ function NavButton({ active, onClick, icon, label, badge }: { active: boolean; o
         active ? "text-brand-fg" : "text-muted hover:text-ink",
       )}
     >
-      <span className={cn("flex h-8 w-14 items-center justify-center rounded-full transition-all duration-300 ease-out-expo", active ? "bg-brand-soft" : "scale-90")}>
+      <span aria-hidden className={cn("flex h-8 w-14 items-center justify-center rounded-full transition-all duration-300 ease-out-expo", active ? "bg-brand-soft" : "scale-90")}>
         {icon}
       </span>
       {label}
+      {badge ? <span className="sr-only">, {badgeLabel}</span> : null}
       {badge ? (
-        <span className="absolute top-1 left-1/2 ml-3 flex h-5 min-w-5 items-center justify-center rounded-full bg-brand px-1 text-[11px] font-bold text-on-brand ring-2 ring-surface animate-pop">
+        <span aria-hidden className="absolute top-1 left-1/2 ml-3 flex h-5 min-w-5 items-center justify-center rounded-full bg-brand px-1 text-[11px] font-bold text-on-brand ring-2 ring-surface animate-pop">
           {badge}
         </span>
       ) : null}
@@ -557,7 +716,7 @@ function JoinScreen({
   others: string[];
   onJoined: () => void;
 }) {
-  const { t } = useApp();
+  const { t, openA11y } = useApp();
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -592,6 +751,7 @@ function JoinScreen({
       </div>
 
       <div className="relative z-10 flex items-center justify-end gap-1 p-4 pt-[max(1rem,env(safe-area-inset-top))]">
+        <A11yButton label={t.a11y} onClick={openA11y} className="bg-white/15 text-white backdrop-blur-md hover:bg-white/25" />
         <LangSwitch className="bg-white/15 text-white backdrop-blur-md" />
         <ThemeToggle className="text-white/85 hover:bg-white/15 hover:text-white" />
       </div>
@@ -639,7 +799,11 @@ function JoinScreen({
             maxLength={30}
             onChange={(e) => setName(e.target.value)}
           />
-          {error && <p className="mt-2 text-sm text-red-600 dark:text-red-400">{error}</p>}
+          {error && (
+            <p role="alert" className="mt-2 text-sm text-red-600 dark:text-red-400">
+              {error}
+            </p>
+          )}
           <Button type="submit" size="lg" className="mt-3 w-full" disabled={loading || name.trim().length < 2}>
             {loading ? <Spinner /> : t.seeMenu}
           </Button>
@@ -690,14 +854,16 @@ function ClosedScreen({
 }
 
 function Stars({ value, onChange, label }: { value: number; onChange: (n: number) => void; label: string }) {
+  const { t } = useApp();
   return (
     <div className="flex items-center justify-between gap-3">
       <span className="text-sm font-semibold">{label}</span>
-      <div className="flex gap-0.5">
+      <div className="flex gap-0.5" role="radiogroup" aria-label={label}>
         {[1, 2, 3, 4, 5].map((n) => (
-          <button key={n} type="button" onClick={() => onChange(n)} aria-label={`${n}`} className="p-0.5">
+          <button key={n} type="button" role="radio" aria-checked={value === n} onClick={() => onChange(n)} aria-label={t.starsOf(n)} className="p-0.5">
             <Star
               key={`${n}-${n <= value}`}
+              aria-hidden
               className={cn("size-8 transition-colors", n <= value ? "fill-amber-400 text-amber-400 animate-pop" : "text-line-strong")}
               style={{ animationDelay: `${n * 40}ms` }}
             />
@@ -718,7 +884,7 @@ function RatingCard({ api, rated, onRated }: { api: TableApi; rated: boolean; on
 
   if (done)
     return (
-      <p className="relative mt-8 flex items-center gap-2 font-semibold text-emerald-700 animate-rise">
+      <p role="status" className="relative mt-8 flex items-center gap-2 font-semibold text-emerald-700 animate-rise">
         <Check className="size-5" /> {t.rateThanks}
       </p>
     );
@@ -738,7 +904,7 @@ function RatingCard({ api, rated, onRated }: { api: TableApi; rated: boolean; on
       <div className="font-display text-xl font-semibold">{t.rateTitle}</div>
       <Stars label={t.rateFood} value={food} onChange={setFood} />
       <Stars label={t.rateService} value={service} onChange={setService} />
-      <textarea className={inputClass} rows={2} maxLength={500} placeholder={t.rateComment} value={comment} onChange={(e) => setComment(e.target.value)} />
+      <textarea className={inputClass} rows={2} maxLength={500} aria-label={t.rateComment} placeholder={t.rateComment} value={comment} onChange={(e) => setComment(e.target.value)} />
       <Button className="w-full" size="lg" disabled={!food || !service || sending} onClick={send}>
         {sending ? <Spinner /> : t.rateSend}
       </Button>
@@ -761,7 +927,7 @@ function CompactHeader({
   called: boolean;
   onCall: () => void;
 }) {
-  const { t } = useApp();
+  const { t, openA11y } = useApp();
   return (
     <header className="sticky top-0 z-30 border-b border-line bg-canvas/85 pt-[env(safe-area-inset-top)] backdrop-blur-xl">
       <div className="flex items-center gap-3 px-4 py-3">
@@ -772,6 +938,7 @@ function CompactHeader({
             {t.table} {tableNumber}
           </div>
         </div>
+        <A11yButton label={t.a11y} onClick={openA11y} className="text-muted hover:bg-surface-2 hover:text-ink" />
         <ThemeToggle />
         {canCall && <CallButton called={called} onClick={onCall} compact />}
       </div>
@@ -784,14 +951,14 @@ function CallButton({ called, onClick, compact }: { called: boolean; onClick: ()
   return (
     <button
       onClick={onClick}
-      aria-label={t.callWaiter}
+      aria-label={called ? `${t.callWaiter}: ${t.alreadyCalled}` : t.callWaiter}
       className={cn(
         "relative inline-flex h-10 shrink-0 items-center gap-2 rounded-full text-sm font-bold transition-all active:scale-95",
         compact ? "px-3" : "px-4",
         called ? "bg-brand-soft text-brand-fg" : "bg-brand text-on-brand shadow-[0_8px_24px_-10px_var(--brand-glow)]",
       )}
     >
-      <Bell className={cn("size-4", called && "origin-top animate-[swing_1.4s_ease-in-out_infinite]")} />
+      <Bell aria-hidden className={cn("size-4", called && "origin-top animate-[swing_1.4s_ease-in-out_infinite]")} />
       {called ? t.called : t.waiter}
       {called && <span className="absolute -top-0.5 -right-0.5 size-2.5 rounded-full bg-brand animate-pulse-dot" />}
       <style>{`@keyframes swing{0%,60%,100%{transform:rotate(0)}15%{transform:rotate(14deg)}30%{transform:rotate(-10deg)}45%{transform:rotate(6deg)}}`}</style>
@@ -824,7 +991,7 @@ function MenuTab({
   onSelect: (item: PublicMenuItem) => void;
   onQuickAdd: (item: PublicMenuItem, from?: HTMLElement) => void;
 }) {
-  const { t, lang, features } = useApp();
+  const { t, lang, features, openA11y } = useApp();
   const cover = coverFor(restaurant, menu);
   const sentinel = useRef<HTMLDivElement>(null);
   const [compact, setCompact] = useState(false);
@@ -890,6 +1057,7 @@ function MenuTab({
         )}
         <div className="absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-black/45 to-transparent" />
         <div className="absolute inset-x-0 top-0 flex items-center justify-end gap-1.5 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] text-white">
+          <A11yButton label={t.a11y} onClick={openA11y} className="bg-black/30 backdrop-blur-md hover:bg-black/45" />
           <LangSwitch className="bg-black/30 backdrop-blur-md" />
           <ThemeToggle className="bg-black/30 text-white backdrop-blur-md hover:bg-black/45 hover:text-white" />
         </div>
@@ -952,13 +1120,14 @@ function MenuTab({
             aria-label={t.search}
             className="flex size-9 shrink-0 items-center justify-center rounded-full border border-line bg-surface text-ink transition hover:border-line-strong"
           >
-            <Search className="size-4" />
+            <Search className="size-4" aria-hidden />
           </button>
-          <div ref={chips} className="no-scrollbar relative flex flex-1 gap-1.5 overflow-x-auto pr-4">
+          <nav ref={chips} aria-label={t.categoriesNav} className="no-scrollbar relative flex flex-1 gap-1.5 overflow-x-auto pr-4">
             {menu.categories.map((c) => (
               <button
                 key={c.id}
                 data-cat={c.id}
+                aria-current={active === c.id ? "true" : undefined}
                 onClick={() => jump(c.id)}
                 className={cn(
                   "h-9 shrink-0 rounded-full px-4 text-sm font-semibold whitespace-nowrap transition-all duration-300",
@@ -969,7 +1138,7 @@ function MenuTab({
                 {tr(lang, c).name}
               </button>
             ))}
-          </div>
+          </nav>
         </div>
       </div>
 
@@ -989,47 +1158,42 @@ function MenuTab({
             {highlights.map((item, i) => {
               const { name } = tr(lang, item);
               return (
-                <button
+                <div
                   key={item.id}
-                  onClick={() => onSelect(item)}
-                  className="group relative aspect-[4/5] w-[68%] max-w-64 shrink-0 snap-start overflow-hidden rounded-[1.6rem] text-left text-white shadow-card animate-rise"
+                  className="group relative aspect-[4/5] w-[68%] max-w-64 shrink-0 snap-start overflow-hidden rounded-[1.6rem] text-white shadow-card animate-rise"
                   style={{ animationDelay: `${120 + i * 60}ms` }}
                 >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={item.image_url!}
-                    alt=""
-                    loading={i < 2 ? "eager" : "lazy"}
-                    className="absolute inset-0 size-full object-cover transition-transform duration-700 ease-out-expo group-hover:scale-105"
-                  />
-                  <span className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/15 to-transparent" />
-                  {item.badges.includes("popular") && (
-                    <span className="absolute top-3 left-3 inline-flex items-center gap-1 rounded-full bg-white/90 px-2.5 py-1 text-[0.7rem] font-bold text-black">
-                      <Flame className="size-3 text-orange-600" /> {t.popular}
-                    </span>
-                  )}
-                  <span className="absolute inset-x-0 bottom-0 p-4">
-                    <span className="block font-display text-xl leading-tight font-semibold">{name}</span>
-                    <span className="mt-1.5 flex items-center justify-between gap-2">
-                      <span className="font-semibold">
+                  <button onClick={() => onSelect(item)} className="absolute inset-0 text-left">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={item.image_url!}
+                      alt=""
+                      loading={i < 2 ? "eager" : "lazy"}
+                      className="absolute inset-0 size-full object-cover transition-transform duration-700 ease-out-expo group-hover:scale-105"
+                    />
+                    <span className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/15 to-transparent" />
+                    {item.badges.includes("popular") && (
+                      <span className="absolute top-3 left-3 inline-flex items-center gap-1 rounded-full bg-white/90 px-2.5 py-1 text-[0.7rem] font-bold text-black">
+                        <Flame className="size-3 text-orange-600" aria-hidden /> {t.popular}
+                      </span>
+                    )}
+                    <span className="absolute inset-x-0 bottom-0 p-4">
+                      <span className="block font-display text-xl leading-tight font-semibold">{name}</span>
+                      <span className="mt-1.5 flex h-9 items-center font-semibold">
                         <Price item={item} light />
                       </span>
-                      {features.customer_ordering && (
-                        <span
-                          role="button"
-                          aria-label={`${t.add}: ${name}`}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onQuickAdd(item, e.currentTarget);
-                          }}
-                          className="flex size-9 items-center justify-center rounded-full bg-white text-black transition-transform active:scale-90"
-                        >
-                          <Plus className="size-4" strokeWidth={2.75} />
-                        </span>
-                      )}
                     </span>
-                  </span>
-                </button>
+                  </button>
+                  {features.customer_ordering && (
+                    <button
+                      aria-label={`${t.add}: ${name}`}
+                      onClick={(e) => onQuickAdd(item, e.currentTarget)}
+                      className="absolute right-4 bottom-4 flex size-9 items-center justify-center rounded-full bg-white text-black transition-transform active:scale-90"
+                    >
+                      <Plus className="size-4" strokeWidth={2.75} aria-hidden />
+                    </button>
+                  )}
+                </div>
               );
             })}
           </div>
@@ -1038,10 +1202,11 @@ function MenuTab({
 
       {/* Filtros */}
       {features.dietary && tags.length > 0 && (
-        <div className="no-scrollbar mt-6 flex gap-2 overflow-x-auto px-5">
+        <div className="no-scrollbar mt-6 flex gap-2 overflow-x-auto px-5" role="group" aria-label={t.dietFilters}>
           {tags.map((tag) => (
             <button
               key={tag}
+              aria-pressed={filter === tag}
               onClick={() => setFilter(filter === tag ? null : tag)}
               className={cn(
                 "inline-flex h-8 shrink-0 items-center gap-1 rounded-full border px-3 text-xs font-bold transition-all",
@@ -1090,12 +1255,16 @@ function ItemBadges({ item, className }: { item: PublicMenuItem; className?: str
 }
 
 function Price({ item, light }: { item: PublicMenuItem; light?: boolean }) {
+  const { t } = useApp();
+  if (item.original_price_cents == null) return <span className="tabular-nums">{formatBRL(item.price_cents)}</span>;
   return (
     <span className="tabular-nums">
-      {item.original_price_cents != null && (
+      {/* riscado não é lido pelo leitor de tela: a frase "de X por Y" vai escondida */}
+      <span className="sr-only">{t.priceFromTo(formatBRL(item.original_price_cents), formatBRL(item.price_cents))}</span>
+      <span aria-hidden>
         <span className={cn("mr-1.5 text-sm font-normal line-through", light ? "text-white/60" : "text-muted")}>{formatBRL(item.original_price_cents)}</span>
-      )}
-      {formatBRL(item.price_cents)}
+        {formatBRL(item.price_cents)}
+      </span>
     </span>
   );
 }
@@ -1121,19 +1290,23 @@ function MenuList({
     );
 
   return (
-    <div className="mt-4">
+    <div className="mt-4 outline-none" id="lista" tabIndex={-1}>
       {menu.categories.map((c) => {
         const items = c.items.filter((i) => !filter || i.tags.includes(filter));
         if (!items.length) return null;
         return (
-          <section key={c.id} id={`cat-${c.id}`} className="pt-7">
+          <section key={c.id} id={`cat-${c.id}`} aria-labelledby={`cat-title-${c.id}`} className="scroll-mt-32 pt-7">
             <div className="flex items-baseline justify-between gap-3 px-5">
-              <h2 className="font-display text-[1.75rem] leading-tight font-semibold tracking-tight">{tr(lang, c).name}</h2>
-              <span className="text-xs font-semibold text-muted tabular-nums">{items.length}</span>
+              <h2 id={`cat-title-${c.id}`} className="font-display text-[1.75rem] leading-tight font-semibold tracking-tight">
+                {tr(lang, c).name}
+              </h2>
+              <span className="text-xs font-semibold text-muted tabular-nums" aria-hidden>
+                {items.length}
+              </span>
             </div>
             {c.window && (
               <p className={cn("mt-1 flex items-center gap-1.5 px-5 text-xs", c.open ? "text-muted" : "font-semibold text-amber-700")}>
-                <Clock className="size-3.5" /> {c.window}
+                <Clock className="size-3.5" aria-hidden /> {c.window}
               </p>
             )}
             <ul className={cn("mt-2", !c.open && "opacity-60")}>
@@ -1162,30 +1335,13 @@ function MenuRow({
   const { t, lang, features } = useApp();
   const { name, description } = tr(lang, item);
   const disabled = !item.available || !open;
-  const plus = features.customer_ordering && !disabled && (
-    <span
-      role="button"
-      tabIndex={0}
-      aria-label={`${t.add}: ${name}`}
-      onClick={(e) => {
-        e.stopPropagation();
-        onQuickAdd(item, e.currentTarget);
-      }}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          e.stopPropagation();
-          onQuickAdd(item, e.currentTarget);
-        }
-      }}
-      className="flex size-9 items-center justify-center rounded-full bg-surface text-ink shadow-[0_4px_14px_-4px_rgb(0_0_0/0.3)] ring-1 ring-line transition-transform hover:scale-105 active:scale-90"
-    >
-      <Plus className="size-[18px]" strokeWidth={2.5} />
-    </span>
-  );
+  const canAdd = features.customer_ordering && !disabled;
+  // O "+" é um botão irmão (não dentro do botão do prato): botões aninhados confundem leitores de tela.
+  const plusClass =
+    "flex size-9 items-center justify-center rounded-full bg-surface text-ink shadow-[0_4px_14px_-4px_rgb(0_0_0/0.3)] ring-1 ring-line transition-transform hover:scale-105 active:scale-90";
 
   return (
-    <li className="group relative px-2">
+    <li className="group relative px-2" id={`item-${item.id}`}>
       <button
         disabled={disabled}
         onClick={() => onSelect(item)}
@@ -1200,7 +1356,7 @@ function MenuRow({
             </p>
           )}
           <ItemBadges item={item} />
-          <div className="mt-2.5 flex items-center gap-3">
+          <div className="mt-2.5 flex min-h-9 items-center gap-3">
             {item.available ? (
               <span className="font-bold text-ink">
                 <Price item={item} />
@@ -1210,29 +1366,34 @@ function MenuRow({
             )}
             {item.eta_min && item.available && (
               <span className="flex items-center gap-1 text-xs text-muted">
-                <Clock className="size-3.5" /> {t.eta(item.eta_min)}
+                <Clock className="size-3.5" aria-hidden /> {t.eta(item.eta_min)}
               </span>
             )}
-            {!item.image_url && <span className="ml-auto">{plus}</span>}
           </div>
         </div>
         {item.image_url && (
-          <span className="relative shrink-0 self-start">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={item.image_url}
-              alt=""
-              loading="lazy"
-              className={cn(
-                "size-[6.75rem] rounded-[1.1rem] object-cover shadow-sm transition-transform duration-500 ease-out-expo group-hover:scale-[1.03]",
-                disabled && "grayscale",
-              )}
-            />
-            {plus && <span className="absolute -right-1.5 -bottom-1.5">{plus}</span>}
-          </span>
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={item.image_url}
+            alt=""
+            loading="lazy"
+            className={cn(
+              "size-[6.75rem] shrink-0 self-start rounded-[1.1rem] object-cover shadow-sm transition-transform duration-500 ease-out-expo group-hover:scale-[1.03]",
+              disabled && "grayscale",
+            )}
+          />
         )}
       </button>
-      <span className="absolute inset-x-5 bottom-0 h-px bg-line group-last:hidden" />
+      {canAdd && (
+        <button
+          aria-label={`${t.add}: ${name}`}
+          onClick={(e) => onQuickAdd(item, e.currentTarget)}
+          className={cn(plusClass, "absolute", item.image_url ? "top-[5.875rem] right-[0.875rem]" : "right-5 bottom-4")}
+        >
+          <Plus className="size-[18px]" strokeWidth={2.5} aria-hidden />
+        </button>
+      )}
+      <span className="absolute inset-x-5 bottom-0 h-px bg-line group-last:hidden" aria-hidden />
     </li>
   );
 }
@@ -1257,9 +1418,20 @@ function SearchSheet({ open, menu, onClose, onSelect }: { open: boolean; menu: P
   return (
     <Sheet open={open} onClose={onClose} title={t.search}>
       <div className="relative">
-        <Search className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted" />
-        <input autoFocus className={cn(inputClass, "pl-10")} placeholder={t.searchPlaceholder} value={q} onChange={(e) => setQ(e.target.value)} />
+        <Search className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted" aria-hidden />
+        <input
+          autoFocus
+          type="search"
+          aria-label={t.search}
+          className={cn(inputClass, "pl-10")}
+          placeholder={t.searchPlaceholder}
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+        />
       </div>
+      <p className="sr-only" aria-live="polite">
+        {q.trim() ? t.results(results.length) : ""}
+      </p>
       <div className="mt-3 min-h-48">
         {q.trim() && results.length === 0 && <p className="py-10 text-center text-sm text-muted">{t.noResults(q.trim())}</p>}
         {results.map(({ item, cat }) => (
@@ -1284,7 +1456,7 @@ function SearchSheet({ open, menu, onClose, onSelect }: { open: boolean; menu: P
               <span className="block truncate font-semibold">{tr(lang, item).name}</span>
               <span className="text-xs text-muted">{cat}</span>
             </span>
-            <span className="text-sm font-bold tabular-nums">{formatBRL(item.price_cents)}</span>
+            <span className="text-sm font-bold tabular-nums">{item.available ? formatBRL(item.price_cents) : t.soldOut}</span>
           </button>
         ))}
       </div>
@@ -1308,14 +1480,14 @@ function ShareSelector({ others, value, onChange }: { others: { id: string; name
         <Users className="size-4 text-muted" /> {t.splitQuestion}
       </div>
       <div className="flex flex-wrap gap-2">
-        <button type="button" className={pill(value === "me")} onClick={() => onChange("me")}>
+        <button type="button" aria-pressed={value === "me"} className={pill(value === "me")} onClick={() => onChange("me")}>
           {t.onlyMe}
         </button>
-        <button type="button" className={pill(value === "all")} onClick={() => onChange("all")}>
+        <button type="button" aria-pressed={value === "all"} className={pill(value === "all")} onClick={() => onChange("all")}>
           {t.splitAll}
         </button>
         {others.length > 0 && (
-          <button type="button" className={pill(Array.isArray(value))} onClick={() => onChange(Array.isArray(value) ? "me" : [])}>
+          <button type="button" aria-pressed={Array.isArray(value)} className={pill(Array.isArray(value))} onClick={() => onChange(Array.isArray(value) ? "me" : [])}>
             {t.choosePeople}
           </button>
         )}
@@ -1328,6 +1500,7 @@ function ShareSelector({ others, value, onChange }: { others: { id: string; name
               <button
                 type="button"
                 key={g.id}
+                aria-pressed={on}
                 onClick={() => onChange(on ? custom.filter((id) => id !== g.id) : [...custom, g.id])}
                 className={cn(
                   "inline-flex h-10 items-center gap-2 rounded-full border pr-4 pl-1.5 text-sm font-semibold transition-all active:scale-95",
@@ -1343,7 +1516,7 @@ function ShareSelector({ others, value, onChange }: { others: { id: string; name
           })}
         </div>
       )}
-      <p className="mt-2.5 text-xs leading-relaxed text-muted">
+      <p className="mt-2.5 text-xs leading-relaxed text-muted" aria-live="polite">
         {value === "all"
           ? t.splitAllHint
           : Array.isArray(value)
@@ -1377,6 +1550,11 @@ function ItemSheet({
 }) {
   const { t, lang, features } = useApp();
   const [qty, setQty] = useState(1);
+  const [canSpeakNow, setCanSpeakNow] = useState(false);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setCanSpeakNow("speechSynthesis" in window);
+  }, []);
   const [optionIds, setOptionIds] = useState<string[]>([]);
   const [note, setNote] = useState("");
   const [share, setShare] = useState<Share>("me");
@@ -1441,6 +1619,17 @@ function ItemSheet({
         <ItemBadges item={item} className="mt-3" />
         <div className="mt-4 flex items-center gap-3 text-xl font-bold">
           <Price item={item} />
+          {canSpeakNow && (
+            <button
+              type="button"
+              onClick={() => speak(spokenItem(t, lang, item), lang)}
+              aria-label={t.listenItem}
+              title={t.listenItem}
+              className="ml-auto flex size-10 items-center justify-center rounded-full bg-surface-2 text-ink transition hover:bg-surface-3"
+            >
+              <Volume2 className="size-5" aria-hidden />
+            </button>
+          )}
           {item.eta_min && (
             <span className="flex items-center gap-1 text-sm font-medium text-muted">
               <Clock className="size-4" /> {t.eta(item.eta_min)}
@@ -1449,8 +1638,8 @@ function ItemSheet({
         </div>
 
         {canOrder && item.options.length > 0 && (
-          <div className="mt-6">
-            <div className="mb-2.5 font-bold">{t.addons}</div>
+          <fieldset className="mt-6">
+            <legend className="mb-2.5 font-bold">{t.addons}</legend>
             <div className="space-y-2">
               {item.options.map((o) => {
                 const on = optionIds.includes(o.id);
@@ -1464,13 +1653,14 @@ function ItemSheet({
                   >
                     <input
                       type="checkbox"
-                      className="sr-only"
+                      className="peer sr-only"
                       checked={on}
                       onChange={(e) => setOptionIds(e.target.checked ? [...optionIds, o.id] : optionIds.filter((id) => id !== o.id))}
                     />
                     <span
+                      aria-hidden
                       className={cn(
-                        "flex size-6 shrink-0 items-center justify-center rounded-lg border-2 transition-all",
+                        "flex size-6 shrink-0 items-center justify-center rounded-lg border-2 transition-all peer-focus-visible:ring-4 peer-focus-visible:ring-brand/40",
                         on ? "border-brand bg-brand text-on-brand" : "border-line-strong",
                       )}
                     >
@@ -1482,7 +1672,7 @@ function ItemSheet({
                 );
               })}
             </div>
-          </div>
+          </fieldset>
         )}
 
         {canOrder && (
@@ -1528,24 +1718,25 @@ function ItemSheet({
   );
 }
 
-function QtyStepper({ value, onChange, min = 1, small }: { value: number; onChange: (n: number) => void; min?: number; small?: boolean }) {
+function QtyStepper({ value, onChange, min = 1, small, label }: { value: number; onChange: (n: number) => void; min?: number; small?: boolean; label?: string }) {
+  const { t } = useApp();
   return (
-    <div className={cn("flex items-center rounded-2xl bg-surface-2", small ? "h-9" : "h-14")}>
+    <div className={cn("flex items-center rounded-2xl bg-surface-2", small ? "h-9" : "h-14")} role="group" aria-label={label ? `${t.qtyIs(value)} · ${label}` : t.qtyIs(value)}>
       <button
         className={cn("flex h-full items-center justify-center text-ink transition active:scale-90 disabled:text-line-strong", small ? "w-9" : "w-12")}
         disabled={value <= min}
         onClick={() => onChange(value - 1)}
-        aria-label="-"
+        aria-label={t.qtyDec}
       >
         <Minus className="size-4" strokeWidth={2.5} />
       </button>
-      <span key={value} className={cn("text-center font-bold tabular-nums animate-pop", small ? "w-5 text-sm" : "w-6")}>
+      <span key={value} aria-live="polite" className={cn("text-center font-bold tabular-nums animate-pop", small ? "w-5 text-sm" : "w-6")}>
         {value}
       </span>
       <button
         className={cn("flex h-full items-center justify-center text-ink transition active:scale-90", small ? "w-9" : "w-12")}
         onClick={() => onChange(Math.min(value + 1, 50))}
-        aria-label="+"
+        aria-label={t.qtyInc}
       >
         <Plus className="size-4" strokeWidth={2.5} />
       </button>
@@ -1648,11 +1839,11 @@ function CartSheet({
                     </div>
                   )}
                   <div className="mt-2 flex items-center gap-1">
-                    <QtyStepper small value={line.qty} onChange={(qty) => onChange(cart.map((l) => (l.key === line.key ? { ...l, qty } : l)))} />
+                    <QtyStepper small label={line.name} value={line.qty} onChange={(qty) => onChange(cart.map((l) => (l.key === line.key ? { ...l, qty } : l)))} />
                     <button
                       className="flex size-9 items-center justify-center rounded-full text-muted transition hover:bg-red-50 hover:text-red-600 dark:hover:text-red-400"
                       onClick={() => onChange(cart.filter((l) => l.key !== line.key))}
-                      aria-label="Remover"
+                      aria-label={`${t.remove}: ${line.name}`}
                     >
                       <Trash2 className="size-4" />
                     </button>
@@ -1730,7 +1921,8 @@ function OrderProgress({ status }: { status: string }) {
     );
   return (
     <div className="mt-3.5">
-      <div className="flex gap-1">
+      <span className="sr-only">{t.statusIs(t.status[status] ?? status)}</span>
+      <div className="flex gap-1" aria-hidden>
         {STEPS.map((s, i) => (
           <span key={s} className="relative h-1.5 flex-1 overflow-hidden rounded-full bg-surface-3">
             <span
@@ -1743,7 +1935,7 @@ function OrderProgress({ status }: { status: string }) {
           </span>
         ))}
       </div>
-      <div className="mt-1.5 grid grid-cols-4 gap-1 text-[0.68rem] font-semibold">
+      <div className="mt-1.5 grid grid-cols-4 gap-1 text-[0.68rem] font-semibold" aria-hidden>
         {STEPS.map((s, i) => (
           <span key={s} className={cn("truncate", i === idx ? "text-brand-fg" : i < idx ? "text-ink" : "text-muted/70", i === 3 && "text-right")}>
             {t.status[s]}
@@ -1875,9 +2067,15 @@ function BillTab({
               <div key={l.itemId} className="flex items-baseline gap-2">
                 <span className="min-w-0 truncate">
                   {l.qty}× {l.name}
-                  {l.splitCount > 1 && <span className="text-muted"> ÷{l.splitCount}</span>}
+                  {l.splitCount > 1 && (
+                    <span className="text-muted">
+                      {" "}
+                      <span aria-hidden>÷{l.splitCount}</span>
+                      <span className="sr-only">{t.splitBy(l.splitCount)}</span>
+                    </span>
+                  )}
                 </span>
-                <span className="min-w-4 flex-1 translate-y-[-3px] border-b border-dotted border-line-strong" />
+                <span aria-hidden className="min-w-4 flex-1 translate-y-[-3px] border-b border-dotted border-line-strong" />
                 <span className="shrink-0 tabular-nums">{formatBRL(l.amountCents)}</span>
               </div>
             ))}
@@ -1886,7 +2084,7 @@ function BillTab({
                 <span className="shrink-0">
                   {t.service} ({bill.serviceFeePct}%)
                 </span>
-                <span className="min-w-4 flex-1 translate-y-[-3px] border-b border-dotted border-line-strong" />
+                <span aria-hidden className="min-w-4 flex-1 translate-y-[-3px] border-b border-dotted border-line-strong" />
                 <span className="shrink-0 tabular-nums">{formatBRL(mine.serviceCents)}</span>
               </div>
             )}
@@ -1924,7 +2122,13 @@ function BillTab({
                       <div key={l.itemId} className="flex justify-between gap-3">
                         <span>
                           {l.qty}× {l.name}
-                          {l.splitCount > 1 && <span className="text-muted"> ÷{l.splitCount}</span>}
+                          {l.splitCount > 1 && (
+                            <span className="text-muted">
+                              {" "}
+                              <span aria-hidden>÷{l.splitCount}</span>
+                              <span className="sr-only">{t.splitBy(l.splitCount)}</span>
+                            </span>
+                          )}
                         </span>
                         <span className="tabular-nums">{formatBRL(l.amountCents)}</span>
                       </div>

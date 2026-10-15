@@ -1,8 +1,10 @@
 "use client";
 
 import {
+  Accessibility,
   ArrowRightLeft,
   Bell,
+  MessageSquareText,
   Check,
   CheckCircle2,
   Circle,
@@ -15,6 +17,7 @@ import {
   X,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AccessNote, NeedIcons } from "@/components/access-note";
 import { Badge, Button, cn, Sheet, Spinner } from "@/components/ui";
 import { playCall, playChime } from "@/lib/alerts";
 import { computeBill, itemTotal } from "@/lib/bill";
@@ -157,14 +160,17 @@ export function WaiterApp({ restaurantId, serviceFeePct, userId, role, features,
           {calls.map((c) => (
             <div key={c.id} className="flex animate-ring flex-wrap items-center gap-3 rounded-2xl border-2 border-red-500 bg-red-50 p-4">
               <div className="shrink-0 rounded-full bg-red-500 p-2.5 text-white">
-                {c.type === "bill" ? <Receipt className="size-5" /> : <Bell className="size-5" />}
+                {c.message ? <MessageSquareText className="size-5" /> : c.type === "bill" ? <Receipt className="size-5" /> : <Bell className="size-5" />}
               </div>
               <div className="min-w-[10rem] flex-1">
                 <div className="font-bold">
-                  Mesa {tableNumber(c.table_id)} · {c.type === "bill" ? "Pediu a conta" : "Chamou o garçom"}
+                  Mesa {tableNumber(c.table_id)} · {c.message ? "Mensagem" : c.type === "bill" ? "Pediu a conta" : "Chamou o garçom"}
                 </div>
-                <div className="text-sm text-muted">
-                  {guestName(c.guest_id)} · {formatElapsed(c.created_at) === "agora" ? "agora" : `há ${formatElapsed(c.created_at)}`}
+                {c.message && <p className="my-1 text-lg leading-snug font-semibold text-ink">“{c.message}”</p>}
+                <div className="flex items-center gap-1.5 text-sm text-muted">
+                  {guestName(c.guest_id)}
+                  <NeedIcons needs={floor.guests.find((g) => g.id === c.guest_id)?.access_needs} className="flex gap-1 text-sky-700" />
+                  · {formatElapsed(c.created_at) === "agora" ? "agora" : `há ${formatElapsed(c.created_at)}`}
                 </div>
               </div>
               {c.type === "bill" && (
@@ -201,6 +207,9 @@ export function WaiterApp({ restaurantId, serviceFeePct, userId, role, features,
             <Legend className="bg-surface ring-1 ring-line" label="Livre" />
             <Legend className="bg-brand" label="Ocupada" />
             <Legend className="bg-red-500" label="Chamando" />
+            <span className="flex items-center gap-1.5">
+              <Accessibility className="size-3 text-sky-600" /> Acessível
+            </span>
           </div>
         </div>
         {tables.length === 0 ? (
@@ -210,6 +219,7 @@ export function WaiterApp({ restaurantId, serviceFeePct, userId, role, features,
             {tables.map((t) => {
               const v = view.byTable.get(t.id);
               const calling = floor.calls.some((c) => c.table_id === t.id);
+              const accessible = !!v && floor.guests.some((g) => g.session_id === v.session.id && (g.access_needs?.length ?? 0) > 0);
               const canOpen = !!v || features.waiter_ordering;
               return (
                 <button
@@ -217,13 +227,18 @@ export function WaiterApp({ restaurantId, serviceFeePct, userId, role, features,
                   onClick={() => (v ? setOpenTableId(t.id) : features.waiter_ordering && setComposeFor(t.id))}
                   disabled={!canOpen}
                   className={cn(
-                    "flex aspect-square flex-col items-center justify-center gap-1 rounded-[1.4rem] p-2 text-center transition-transform duration-200 hover:-translate-y-0.5 active:scale-95",
+                    "relative flex aspect-square flex-col items-center justify-center gap-1 rounded-[1.4rem] p-2 text-center transition-transform duration-200 hover:-translate-y-0.5 active:scale-95",
                     !v && "bg-surface text-muted ring-1 ring-line",
                     v && !calling && "bg-brand text-on-brand shadow-md",
                     calling && "animate-ring bg-red-500 text-white shadow-md",
                   )}
                 >
                   <span className="font-display text-4xl leading-none font-semibold">{t.number}</span>
+                  {accessible && (
+                    <span className="absolute top-2 right-2 flex size-6 items-center justify-center rounded-full bg-sky-600 text-white" title="Atendimento acessível">
+                      <Accessibility className="size-3.5" aria-label="Atendimento acessível" />
+                    </span>
+                  )}
                   {v ? (
                     <>
                       <span className="text-sm font-semibold">{formatBRL(v.bill.totalCents)}</span>
@@ -490,6 +505,8 @@ function TableSheet({
         </div>
       }
     >
+      <AccessNote guests={sessionGuests} />
+
       {(features.waiter_ordering || features.table_transfer) && (
         <div className="mb-4 flex flex-wrap gap-2">
           {features.waiter_ordering && (

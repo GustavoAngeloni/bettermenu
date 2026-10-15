@@ -1,6 +1,6 @@
 "use client";
 
-import { Palette } from "lucide-react";
+import { Globe, Palette } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -8,7 +8,7 @@ import { Button, Field, inputClass, PageHeader, Spinner } from "@/components/ui"
 import { createClient } from "@/lib/supabase/client";
 import type { Restaurant } from "@/lib/types";
 
-export function SettingsForm({ restaurant }: { restaurant: Restaurant }) {
+export function SettingsForm({ restaurant, publicUrl }: { restaurant: Restaurant; publicUrl: string | null }) {
   const supabase = createClient();
   const router = useRouter();
   const [name, setName] = useState(restaurant.name);
@@ -44,6 +44,25 @@ export function SettingsForm({ restaurant }: { restaurant: Restaurant }) {
         </span>
         <span className="text-brand-fg transition-transform group-hover:translate-x-1">→</span>
       </Link>
+
+      {publicUrl && (
+        <a
+          href={publicUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="group flex items-center gap-4 rounded-[1.4rem] border border-line bg-surface p-4 transition hover:border-brand/40"
+        >
+          <span className="flex size-12 items-center justify-center rounded-2xl bg-brand-soft text-brand-fg">
+            <Globe className="size-5" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block font-bold">Página pública do cardápio</span>
+            <span className="block text-sm text-muted">Aparece no Google e nas IAs. Coloque no Instagram, no Google Meu Negócio e no WhatsApp.</span>
+            <span className="mt-1 block truncate text-sm font-semibold text-brand-fg">{publicUrl.replace(/^https?:\/\//, "")}</span>
+          </span>
+          <span className="text-brand-fg transition-transform group-hover:translate-x-1">↗</span>
+        </a>
+      )}
 
       <div className="space-y-5 rounded-[1.4rem] border border-line bg-surface p-5 md:p-6">
         <Field label="Nome do restaurante">

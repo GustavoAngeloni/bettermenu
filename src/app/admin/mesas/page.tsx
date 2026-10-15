@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import type { Sector, Table } from "@/lib/types";
 import { TablesManager } from "./tables-manager";
 
-export const metadata = { title: "Mesas · Better Menu" };
+export const metadata = { title: "Mesas" };
 
 export default async function TablesPage() {
   const { restaurant, features } = await requireStaff(["manager"]);

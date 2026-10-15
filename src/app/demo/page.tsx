@@ -5,7 +5,7 @@ import { FONT_STYLES, type FontStyle } from "@/lib/branding";
 import { DemoClient } from "./demo-client";
 
 export const metadata: Metadata = {
-  title: "Demonstração · Better Menu",
+  title: "Demonstração",
   description: "Experimente o cardápio digital do Better Menu como um cliente na mesa.",
 };
 

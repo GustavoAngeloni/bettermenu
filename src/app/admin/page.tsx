@@ -7,7 +7,7 @@ import { formatBRL } from "@/lib/money";
 import { loadStats, PERIODS, type Period, type Stats } from "@/lib/stats";
 import { createClient } from "@/lib/supabase/server";
 
-export const metadata = { title: "Estatísticas · Better Menu" };
+export const metadata = { title: "Estatísticas" };
 
 const DOW = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
