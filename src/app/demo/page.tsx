@@ -1,12 +1,14 @@
 import type { Metadata } from "next";
 import { BrandScope } from "@/components/brand";
-import { ThemeScript } from "@/components/theme";
+import { ThemeScript } from "@/components/pre-paint";
 import { FONT_STYLES, type FontStyle } from "@/lib/branding";
 import { DemoClient } from "./demo-client";
 
 export const metadata: Metadata = {
-  title: "Demonstração",
-  description: "Experimente o cardápio digital do Better Menu como um cliente na mesa.",
+  title: "Demonstração do cardápio digital",
+  description: "Experimente o cardápio digital do Better Menu como um cliente na mesa: pedido pelo celular, conta dividida e recursos de acessibilidade.",
+  alternates: { canonical: "/demo" },
+  openGraph: { url: "/demo", title: "Demonstração do cardápio digital · Better Menu" },
 };
 
 /**

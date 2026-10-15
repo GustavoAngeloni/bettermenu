@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { BrandScope } from "@/components/brand";
-import { ThemeScript } from "@/components/theme";
+import { ThemeScript } from "@/components/pre-paint";
 import { resolveBranding } from "@/lib/branding";
 import { resolveFeatures } from "@/lib/features";
 import { getPublicState, loadMenu, loadTable } from "@/lib/public-table";

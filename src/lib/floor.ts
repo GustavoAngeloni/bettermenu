@@ -24,8 +24,15 @@ export async function loadFloor(supabase: SupabaseClient, restaurantId: string):
     return { tables: (tables ?? []) as Table[], sessions: [], guests: [], items: [], shares: [], calls: [] };
   }
 
+  const guestCols = "id, session_id, name, paid_at, created_at, payment_method, paid_cents";
   const [{ data: guests }, { data: items }] = await Promise.all([
-    supabase.from("guests").select("id, session_id, name, paid_at, created_at, payment_method, paid_cents").in("session_id", sessionIds).order("created_at"),
+    // access_needs (schema v3): sem a migração, cai para a consulta antiga
+    supabase
+      .from("guests")
+      .select(`${guestCols}, access_needs`)
+      .in("session_id", sessionIds)
+      .order("created_at")
+      .then((r) => (r.error ? supabase.from("guests").select(guestCols).in("session_id", sessionIds).order("created_at") : r)),
     supabase.from("order_items").select("*").in("session_id", sessionIds).order("created_at"),
   ]);
   const customIds = ((items ?? []) as OrderItem[]).filter((i) => i.share_mode === "custom").map((i) => i.id);

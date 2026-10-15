@@ -7,14 +7,6 @@ import type { ThemeMode } from "@/lib/branding";
 
 const KEY = "bm_theme";
 
-/**
- * Script que roda antes da primeira pintura: aplica o tema salvo no aparelho,
- * senão o padrão da tela (`fallback`), senão o do sistema. Evita o "flash" branco.
- */
-export function ThemeScript({ fallback = "auto" }: { fallback?: ThemeMode }) {
-  const js = `(function(){try{var d=document.documentElement,s=localStorage.getItem("${KEY}"),f="${fallback}";var m=s==="light"||s==="dark"?s:f!=="auto"?f:matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";d.dataset.theme=m;}catch(e){}})()`;
-  return <script dangerouslySetInnerHTML={{ __html: js }} />;
-}
 
 function current(): "light" | "dark" {
   return document.documentElement.dataset.theme === "dark" ? "dark" : "light";
@@ -76,4 +68,20 @@ export function ThemeToggle({ className, label }: { className?: string; label?: 
       {label && <span>{dark ? "Tema escuro" : "Tema claro"}</span>}
     </button>
   );
+}
+
+/**
+ * Complemento do ThemeScript: em navegação interna (ex.: login → cozinha) o script
+ * da página não roda, então o tema padrão da tela é aplicado depois da hidratação.
+ */
+export function ThemeFallback({ fallback }: { fallback: ThemeMode }) {
+  useEffect(() => {
+    if (fallback === "auto") return;
+    let saved: string | null = null;
+    try {
+      saved = localStorage.getItem(KEY);
+    } catch {}
+    if (saved !== "light" && saved !== "dark") document.documentElement.dataset.theme = fallback;
+  }, [fallback]);
+  return null;
 }

@@ -173,14 +173,16 @@ export function WaiterApp({ restaurantId, serviceFeePct, userId, role, features,
                   · {formatElapsed(c.created_at) === "agora" ? "agora" : `há ${formatElapsed(c.created_at)}`}
                 </div>
               </div>
-              {c.type === "bill" && (
-                <Button size="sm" variant="secondary" onClick={() => setOpenTableId(c.table_id)}>
-                  Conta
+              <div className="ml-auto flex gap-2">
+                {c.type === "bill" && (
+                  <Button size="sm" variant="secondary" onClick={() => setOpenTableId(c.table_id)}>
+                    Conta
+                  </Button>
+                )}
+                <Button size="sm" variant="danger" onClick={() => resolveCall(c.id)}>
+                  <Check className="size-4" /> Atendido
                 </Button>
-              )}
-              <Button size="sm" variant="danger" onClick={() => resolveCall(c.id)}>
-                <Check className="size-4" /> Atendido
-              </Button>
+              </div>
             </div>
           ))}
           {groupBy(readyItems, (i) => i.table_id).map(([tableId, items]) => (

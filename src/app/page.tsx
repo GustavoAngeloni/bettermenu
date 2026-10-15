@@ -1,9 +1,15 @@
 import { Accessibility, ArrowRight, BellRing, ChefHat, Ear, Hand, MessageSquareText, QrCode, Receipt, Type, Volume2 } from "lucide-react";
+import type { Metadata } from "next";
 import Link from "next/link";
 import { FaqItem, SiteFooter, SiteHeader } from "@/components/site-chrome";
 import { FAQ } from "@/lib/faq";
 import { faqLd, JsonLd, organizationLd, SITE, softwareLd } from "@/lib/site";
 import { LivePhone } from "./live-phone";
+
+export const metadata: Metadata = {
+  alternates: { canonical: "/" },
+  openGraph: { url: "/", title: SITE.title, description: SITE.description },
+};
 
 const steps = [
   { icon: QrCode, title: "O cliente escaneia", text: "QR Code na mesa, digita o nome e já está no cardápio do seu restaurante, com suas cores e fotos." },

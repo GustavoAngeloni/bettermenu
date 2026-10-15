@@ -28,12 +28,13 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
     .eq("type", type)
     .eq("status", "open")
     .limit(1);
-  const existing = open?.[0] as { id: string; message?: string | null } | undefined;
+  const existing = open?.[0] as { id: string; guest_id: string | null; message?: string | null } | undefined;
   if (existing && !message) return NextResponse.json({ ok: true, already: true });
 
   if (existing) {
     // Já há um chamado aberto: a nova mensagem entra nele (o garçom vê tudo junto).
-    const joined = [existing.message, `${me.guest.name}: ${message}`].filter(Boolean).join(" · ").slice(-600);
+    const line = existing.guest_id === me.guest.id ? message : `${me.guest.name}: ${message}`;
+    const joined = [existing.message, line].filter(Boolean).join(" · ").slice(-600);
     const { error } = await db.from("waiter_calls").update({ message: joined }).eq("id", existing.id);
     if (error) return NextResponse.json({ error: isMissingColumn(error) ? "Mensagens ainda não disponíveis neste restaurante" : "Não foi possível enviar" }, { status: 500 });
   } else {

@@ -1,6 +1,6 @@
 import { BrandScope } from "@/components/brand";
 import { ShiftGate } from "@/components/shift-gate";
-import { ThemeScript } from "@/components/theme";
+import { ThemeScript } from "@/components/pre-paint";
 import { StaffHeader } from "@/components/staff-header";
 import { requireStaff } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";

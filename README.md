@@ -28,7 +28,36 @@ conforme o contraste. "Better Menu · by insight" aparece no rodapé do cardápi
 Todas as telas têm **tema claro e escuro** (botão sol/lua). A escolha fica salva no aparelho; a cozinha abre no escuro.
 Os tokens de cor estão em `src/app/globals.css`.
 
-> Atualizando um banco existente: rode `npm run db:migrate` (ou cole o `supabase/schema.sql` de novo) para criar a coluna `branding`.
+> Atualizando um banco existente: rode `npm run db:migrate` (ou cole o `supabase/schema.sql` de novo) para criar as colunas
+> `restaurants.branding`, `waiter_calls.message` e `guests.access_needs`. É aditivo e idempotente.
+
+## Acessibilidade
+
+O cardápio do cliente tem um botão de acessibilidade em todas as telas (`src/app/m/[token]/accessibility.tsx`, preferências em `src/lib/a11y.tsx`):
+
+- **Pessoas cegas ou com baixa visão:** compatível com VoiceOver/TalkBack (botões nomeados, preços com promoção lidos como "de X por Y",
+  status anunciado, foco preso nos painéis), **Ouvir o cardápio** (voz lê prato a prato, com destaque na tela), ditado por voz,
+  texto até 130%, alto contraste e redução de animações.
+- **Pessoas surdas ou que não falam:** mensagem escrita ou frase pronta para o garçom (chega como chamado, também no celular bloqueado),
+  **Mostrar na tela** (letras grandes para virar para a equipe), tradução em Libras (VLibras, carregado só quando ligado) e avisos por vibração.
+- **Aviso à equipe:** o cliente informa como prefere ser atendido; a mesa ganha um selo no mapa do garçom e a mesa mostra a orientação
+  (`src/lib/access-needs.ts`, `src/components/access-note.tsx`).
+
+Banco: `waiter_calls.message` e `guests.access_needs` (schema v3). Sem a migração o app continua funcionando, só sem esses dados.
+
+## Buscadores e IAs (SEO · AEO · GEO)
+
+- `robots.txt` (`src/app/robots.ts`): libera páginas públicas e robôs de IA; bloqueia painel, mesas e API (que também recebem `X-Robots-Tag: noindex`).
+- `sitemap.xml` (`src/app/sitemap.ts`): páginas de conteúdo + página pública de cada restaurante.
+- `llms.txt` e `llms-full.txt`: resumo em Markdown para assistentes de IA (`src/lib/llms.ts`).
+- Dados estruturados JSON-LD (`src/lib/site.tsx`): Organization, SoftwareApplication (com recursos de acessibilidade), FAQPage, Article, BreadcrumbList.
+- Páginas de conteúdo: `/cardapio-digital` (guia), `/acessibilidade` (declaração), `/perguntas-frequentes` (FAQ em `src/lib/faq.ts`).
+- **Página pública do cardápio** `/r/{código}`: só consulta, com Restaurant + Menu + preços em schema.org. Função "Página pública do cardápio"
+  (liga/desliga no `/super`). O dono vê o link em Configurações.
+- Imagem de compartilhamento (`opengraph-image.tsx`) e ícone do iPhone (`apple-icon.tsx`).
+
+Depois do deploy: cadastre o domínio no Google Search Console e no Bing Webmaster Tools e envie o `/sitemap.xml`.
+Opcionais: `NEXT_PUBLIC_CONTACT_URL` (botão "Fale com a gente") e `NEXT_PUBLIC_CONTACT_EMAIL` (contato na declaração de acessibilidade).
 
 ## Funções liga/desliga por restaurante
 

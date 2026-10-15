@@ -44,11 +44,6 @@ export function applyPrefs(p: A11yPrefs) {
   else delete d.dataset.motion;
 }
 
-/** Roda antes da primeira pintura, como o ThemeScript: evita o texto "pular" de tamanho. */
-export function A11yScript() {
-  const js = `(function(){try{var p=JSON.parse(localStorage.getItem("${KEY}")||"{}"),d=document.documentElement,s=${JSON.stringify(SCALE)};if(p.size)d.style.fontSize=s[p.size];if(p.contrast)d.dataset.contrast="high";if(p.calm)d.dataset.motion="reduce";}catch(e){}})()`;
-  return <script dangerouslySetInnerHTML={{ __html: js }} />;
-}
 
 export function useA11yPrefs() {
   const [prefs, setPrefs] = useState<A11yPrefs>(DEFAULT_PREFS);

@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Bricolage_Grotesque, Fraunces, Instrument_Serif, Manrope } from "next/font/google";
-import { ThemeScript } from "@/components/theme";
-import { A11yScript } from "@/lib/a11y";
+import { ThemeScript } from "@/components/pre-paint";
+import { A11yScript } from "@/components/pre-paint";
 import { SITE } from "@/lib/site";
 import "./globals.css";
 
@@ -23,14 +23,12 @@ export const metadata: Metadata = {
   category: "Software para restaurantes",
   manifest: "/manifest.webmanifest",
   icons: { icon: "/icon.svg" },
-  alternates: { canonical: "/" },
   openGraph: {
     type: "website",
     locale: SITE.locale,
     siteName: SITE.name,
     title: SITE.title,
     description: SITE.description,
-    url: "/",
   },
   twitter: { card: "summary_large_image", title: SITE.title, description: SITE.description },
   robots: { index: true, follow: true, googleBot: { index: true, follow: true, "max-image-preview": "large", "max-snippet": -1 } },
