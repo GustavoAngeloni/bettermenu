@@ -1,6 +1,7 @@
 import { Accessibility, ArrowRight, BellRing, ChefHat, Ear, Hand, MessageSquareText, QrCode, Receipt, Type, Volume2 } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Pricing } from "@/components/pricing";
 import { FaqItem, SiteFooter, SiteHeader } from "@/components/site-chrome";
 import { FAQ } from "@/lib/faq";
 import { faqLd, JsonLd, organizationLd, SITE, softwareLd } from "@/lib/site";
@@ -173,6 +174,19 @@ export default function Home() {
           <Link href="/acessibilidade" className="group mt-14 inline-flex h-12 items-center gap-2 rounded-2xl bg-white px-6 font-semibold text-[#16120f] transition hover:bg-white/90">
             Ver todos os recursos de acessibilidade <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" aria-hidden />
           </Link>
+        </div>
+      </section>
+
+      {/* Planos */}
+      <section aria-labelledby="planos" className="border-b border-line bg-surface">
+        <div className="mx-auto w-full max-w-6xl px-5 py-24">
+          <h2 id="planos" className="mx-auto max-w-2xl text-center font-serif text-4xl leading-tight font-semibold tracking-tight md:text-5xl">
+            Planos que crescem <span className="font-normal italic">com a sua casa.</span>
+          </h2>
+          <p className="mx-auto mt-4 max-w-lg text-center text-muted">Sem adesão e sem fidelidade. No anual, 5% de desconto.</p>
+          <div className="mt-10">
+            <Pricing />
+          </div>
         </div>
       </section>
 

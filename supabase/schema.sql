@@ -492,3 +492,75 @@ create trigger stations_limit before insert on stations
 -- Custo do produto (controle financeiro): custo médio por porção, e a cópia no pedido
 alter table menu_items  add column if not exists cost_cents      int check (cost_cents >= 0);
 alter table order_items add column if not exists unit_cost_cents int;
+
+-- =====================================================================
+-- v5 — assinaturas (Mercado Pago) e central de aprendizado
+-- (aditivo e idempotente: pode rodar de novo sem perder dados)
+-- =====================================================================
+
+-- Planos criados no Mercado Pago (um por plano × ciclo × valor)
+create table if not exists billing_plans (
+  id            uuid primary key default gen_random_uuid(),
+  plan          text not null,
+  cycle         text not null check (cycle in ('mensal', 'anual')),
+  amount_cents  int  not null,
+  mp_plan_id    text not null unique,
+  created_at    timestamptz not null default now(),
+  unique (plan, cycle, amount_cents)
+);
+
+-- Assinaturas: do checkout até cada renovação (atualizadas pelo webhook do Mercado Pago)
+create table if not exists subscriptions (
+  id                uuid primary key default gen_random_uuid(),
+  restaurant_id     uuid references restaurants(id) on delete set null,
+  plan              text not null,
+  cycle             text not null check (cycle in ('mensal', 'anual')),
+  amount_cents      int  not null,
+  status            text not null default 'pending', -- pending, authorized, paused, cancelled, failed
+  mp_preapproval_id text unique,
+  payer_email       text not null,
+  owner_name        text,
+  phone             text,
+  document          text,
+  restaurant_name   text,
+  next_payment_date timestamptz,
+  last_payment_at   timestamptz,
+  created_at        timestamptz not null default now(),
+  updated_at        timestamptz not null default now()
+);
+create index if not exists subscriptions_restaurant_idx on subscriptions (restaurant_id);
+
+-- Central de aprendizado: manuais, vídeos e novidades publicados pela plataforma
+create table if not exists learning_items (
+  id            uuid primary key default gen_random_uuid(),
+  kind          text not null check (kind in ('manual', 'video', 'novidade', 'artigo')),
+  title         text not null,
+  summary       text,
+  body          text,
+  url           text,
+  cover_url     text,
+  audience      text[] not null default '{}', -- owner, manager, waiter, kitchen (vazio = todos)
+  plans         text[] not null default '{}', -- essencial, profissional, premium (vazio = todos)
+  pinned        boolean not null default false,
+  published     boolean not null default true,
+  published_at  timestamptz not null default now(),
+  created_at    timestamptz not null default now()
+);
+alter table profiles add column if not exists learning_seen_at timestamptz;
+
+alter table billing_plans  enable row level security;
+alter table subscriptions  enable row level security;
+alter table learning_items enable row level security;
+
+-- Dono vê a assinatura do próprio restaurante; super admin vê tudo. Escrita só pelo servidor.
+drop policy if exists subscriptions_select on subscriptions;
+create policy subscriptions_select on subscriptions for select to authenticated
+  using ((restaurant_id = my_restaurant_id() and is_manager()) or is_superadmin());
+
+-- Materiais publicados: qualquer pessoa da equipe lê; só o super admin escreve.
+drop policy if exists learning_select on learning_items;
+create policy learning_select on learning_items for select to authenticated
+  using (published or is_superadmin());
+drop policy if exists learning_write on learning_items;
+create policy learning_write on learning_items for all to authenticated
+  using (is_superadmin()) with check (is_superadmin());

@@ -52,3 +52,46 @@ export const PLAN_HIGHLIGHTS: { label: string; values: Record<PlanKey, string | 
   { label: "Happy hour e cardápio por horário", values: { essencial: false, profissional: false, premium: true } },
   { label: "Tradução para inglês e espanhol", values: { essencial: false, profissional: false, premium: true } },
 ];
+
+// ---------------------------------------------------------------- cobrança
+
+export const CYCLES = ["mensal", "anual"] as const;
+export type Cycle = (typeof CYCLES)[number];
+
+/** Desconto do pagamento anual. */
+export const ANNUAL_DISCOUNT = 0.05;
+
+/** Valor cobrado por ciclo, em centavos: mensal = preço do plano; anual = 12 meses com 5% de desconto. */
+export function cycleAmountCents(plan: PlanKey, cycle: Cycle) {
+  const monthly = PLANS[plan].priceCents;
+  return cycle === "mensal" ? monthly : Math.round(monthly * 12 * (1 - ANNUAL_DISCOUNT));
+}
+
+/** Quanto o anual economiza em relação a 12 mensalidades. */
+export function annualSavingsCents(plan: PlanKey) {
+  return PLANS[plan].priceCents * 12 - cycleAmountCents(plan, "anual");
+}
+
+export function isCycle(v: unknown): v is Cycle {
+  return v === "mensal" || v === "anual";
+}
+
+export function isPlanKey(v: unknown): v is PlanKey {
+  return typeof v === "string" && v in PLANS;
+}
+
+/** Frases curtas de cada plano para a vitrine de preços. */
+export const PLAN_PITCH: Record<PlanKey, { tagline: string; bullets: string[] }> = {
+  essencial: {
+    tagline: "Para começar a digitalizar o salão.",
+    bullets: ["Até 10 mesas e 1 estação de preparo", "Cardápio digital com fotos e QR Code", "Garçom lança os pedidos no celular", "Avaliações dos clientes", "Acessibilidade completa"],
+  },
+  profissional: {
+    tagline: "O cliente pede sozinho e você enxerga o lucro.",
+    bullets: ["Até 30 mesas, 2 estações e 3 restaurantes", "Cliente faz o pedido pelo celular", "Ticket médio, custo e lucro por prato", "Fechamento de caixa e relatórios em Excel", "Tudo do Essencial"],
+  },
+  premium: {
+    tagline: "Para casas grandes e redes.",
+    bullets: ["Mesas e estações ilimitadas, até 5 restaurantes", "Happy hour e cardápio por horário", "Cardápio em inglês e espanhol", "Tudo do Profissional"],
+  },
+};

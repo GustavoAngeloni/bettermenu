@@ -41,6 +41,7 @@ export const absoluteUrl = (path = "/") => `${SITE.url}${path.startsWith("/") ? 
 /** Páginas públicas de conteúdo (sitemap, rodapé, llms.txt). */
 export const PUBLIC_PAGES = [
   { path: "/", title: "Better Menu", summary: "Página inicial: o que é, como funciona e para quem é." },
+  { path: "/planos", title: "Planos e preços", summary: "Essencial, Profissional e Premium; mensal ou anual com 5% de desconto, no cartão pelo Mercado Pago." },
   { path: "/cardapio-digital", title: "Cardápio digital com QR Code: guia completo", summary: "O que é, como funciona, comparação com PDF e cardápio impresso, como escolher." },
   { path: "/acessibilidade", title: "Acessibilidade", summary: "Recursos para pessoas cegas, com baixa visão, surdas e que não falam, e declaração de acessibilidade." },
   { path: "/perguntas-frequentes", title: "Perguntas frequentes", summary: "Respostas diretas sobre preço, implantação, pedidos, conta dividida, idiomas e acessibilidade." },

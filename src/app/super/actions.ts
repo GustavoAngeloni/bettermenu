@@ -6,7 +6,8 @@ import { redirect } from "next/navigation";
 import { IMPERSONATE_COOKIE, requireSuperadmin } from "@/lib/auth";
 import { featuresFromForm } from "@/lib/features";
 import { PLANS, planOf } from "@/lib/plans";
-import { createStaffUser, slugify } from "@/lib/staff-admin";
+import { provisionRestaurant } from "@/lib/provision";
+import { slugify } from "@/lib/staff-admin";
 import { createAdminClient } from "@/lib/supabase/server";
 
 /** Limite vindo do formulário; vazio = o limite do plano ("0" ou "-" = ilimitado). */
@@ -55,31 +56,21 @@ export async function createRestaurant(_prev: string | null, form: FormData): Pr
   const { data: exists } = await db.from("restaurants").select("id").eq("slug", slug).maybeSingle();
   if (exists) return `O código "${slug}" já está em uso`;
 
-  const { data: restaurant, error } = await db
-    .from("restaurants")
-    .insert({ name, slug, service_fee_pct: readFee(form), features: featuresFromForm(form), plan, max_tables, max_stations, paid_until })
-    .select()
-    .single();
-  if (error || !restaurant) return error?.message ?? "Erro ao criar restaurante";
-
-  const ownerError = await createStaffUser({
-    restaurantId: restaurant.id,
+  const result = await provisionRestaurant({
+    name,
     slug,
-    name: String(form.get("ownerName") ?? ""),
-    username: String(form.get("ownerUsername") ?? ""),
-    password: String(form.get("ownerPassword") ?? ""),
-    role: "owner",
+    plan,
+    ownerName: String(form.get("ownerName") ?? ""),
+    ownerUsername: String(form.get("ownerUsername") ?? ""),
+    ownerPassword: String(form.get("ownerPassword") ?? ""),
+    tables,
+    serviceFeePct: readFee(form),
+    features: featuresFromForm(form),
+    maxTables: max_tables,
+    maxStations: max_stations,
+    paidUntil: paid_until,
   });
-  if (ownerError) {
-    await db.from("restaurants").delete().eq("id", restaurant.id);
-    return `Dono: ${ownerError}`;
-  }
-
-  // Ponto de partida: estações padrão e as mesas do salão.
-  await seedStations(restaurant.id, max_stations);
-  if (tables > 0) {
-    await db.from("tables").insert(Array.from({ length: tables }, (_, i) => ({ restaurant_id: restaurant.id, number: i + 1 })));
-  }
+  if (!result.ok) return result.error;
 
   revalidatePath("/super");
   return `ok:${slug}`;

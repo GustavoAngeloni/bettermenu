@@ -29,7 +29,29 @@ Todas as telas têm **tema claro e escuro** (botão sol/lua). A escolha fica sal
 Os tokens de cor estão em `src/app/globals.css`.
 
 > Atualizando um banco existente: rode `npm run db:migrate` (ou cole o `supabase/schema.sql` de novo) para criar as colunas
-> `restaurants.branding`, `waiter_calls.message` e `guests.access_needs`. É aditivo e idempotente.
+> `restaurants.branding`, `waiter_calls.message`, `guests.access_needs`, as colunas de planos e as tabelas de assinaturas e da central
+> de aprendizado. É aditivo e idempotente.
+
+## Assinaturas (checkout com Mercado Pago)
+
+- Vitrine em `/planos` (e na home) com Essencial, Profissional e Premium, **mensal** ou **anual com 5% de desconto** (`src/lib/plans.ts`).
+- Checkout em `/assinar`: plano → dados do restaurante e do dono → pagamento. O cartão é digitado no formulário seguro do
+  Mercado Pago (Card Payment Brick) embutido na página, com as cores do Better Menu; o token vai para `/api/assinatura`,
+  que cria a assinatura no Mercado Pago (já autorizada) e **cria o restaurante e o login do dono na hora**.
+- Cada plano × ciclo vira um plano de assinatura no Mercado Pago, criado sozinho na primeira venda (`billing_plans`).
+- Dono logado que muda de plano: o novo plano vale para todas as unidades e a assinatura anterior é cancelada.
+- Webhook `/api/mercadopago/webhook` (tópicos de Assinaturas): mantém status, próxima cobrança e "pago até".
+- Dono vê e cancela a assinatura em Configurações; o super admin vê todas as assinaturas em `/super`.
+
+Configurar: `MERCADOPAGO_ACCESS_TOKEN`, `NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY` e `MERCADOPAGO_WEBHOOK_SECRET` (ver `.env.example`)
+e, no painel do Mercado Pago, a URL de notificação `https://SEU-DOMINIO/api/mercadopago/webhook` com os eventos de
+"Planos e assinaturas". Para testar, use credenciais de teste e os cartões de teste do Mercado Pago.
+
+## Central de aprendizado
+
+- Super admin publica em `/super/aprender`: manuais (PDF enviado ou link), vídeos (YouTube, Vimeo, Loom, mp4), novidades e artigos,
+  com público (dono, gerente, garçom, cozinha) e planos opcionais, fixar no topo e rascunho.
+- Donos e gerentes acessam em **Aprender** (`/admin/aprender`); novidades ainda não vistas aparecem com contador no menu.
 
 ## Acessibilidade
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { BarChart3, BookOpen, ChefHat, ChevronsUpDown, ConciergeBell, LogOut, Palette, QrCode, Settings, Store, Users, Wallet } from "lucide-react";
+import { BarChart3, BookOpen, ChefHat, GraduationCap, ChevronsUpDown, ConciergeBell, LogOut, Palette, QrCode, Settings, Store, Users, Wallet } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useTransition, type ReactNode } from "react";
@@ -57,6 +57,7 @@ const links = [
   { href: "/admin/equipe", label: "Equipe", icon: Users },
   { href: "/admin/marca", label: "Identidade visual", icon: Palette, ownerOnly: true },
   { href: "/admin/configuracoes", label: "Configurações", icon: Settings, ownerOnly: true },
+  { href: "/admin/aprender", label: "Aprender", icon: GraduationCap },
 ];
 
 const ops = [
@@ -70,6 +71,7 @@ export function AdminShell({
   isOwner,
   payments,
   units,
+  learningNew = 0,
   logout,
   banner,
   children,
@@ -79,6 +81,8 @@ export function AdminShell({
   isOwner: boolean;
   payments: boolean;
   units?: Units;
+  /** novidades da central de aprendizado ainda não vistas */
+  learningNew?: number;
   logout: () => Promise<void>;
   banner?: ReactNode;
   children: ReactNode;
@@ -104,7 +108,7 @@ export function AdminShell({
 
           <nav className="flex-1 space-y-0.5 overflow-y-auto px-3">
             {visible.map((l) => (
-              <NavLink key={l.href} {...l} active={isActive(l.href)} />
+              <NavLink key={l.href} {...l} active={isActive(l.href)} badge={l.href === "/admin/aprender" ? learningNew : 0} />
             ))}
             <div className="px-3 pt-6 pb-2 text-xs font-semibold text-muted">Operação</div>
             {ops.map((l) => (
@@ -164,6 +168,11 @@ export function AdminShell({
                     )}
                   >
                     <l.icon className="size-4" /> {l.label}
+                    {l.href === "/admin/aprender" && learningNew > 0 && (
+                      <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-brand px-1 text-[11px] font-bold text-on-brand" aria-label={`${learningNew} novidades`}>
+                        {learningNew}
+                      </span>
+                    )}
                   </Link>
                 );
               })}
@@ -177,7 +186,7 @@ export function AdminShell({
   );
 }
 
-function NavLink({ href, label, icon: Icon, active }: { href: string; label: string; icon: typeof BarChart3; active: boolean }) {
+function NavLink({ href, label, icon: Icon, active, badge = 0 }: { href: string; label: string; icon: typeof BarChart3; active: boolean; badge?: number }) {
   return (
     <Link
       href={href}
@@ -189,6 +198,11 @@ function NavLink({ href, label, icon: Icon, active }: { href: string; label: str
     >
       <Icon className={cn("size-[18px] transition-transform duration-300 ease-out-expo", !active && "group-hover:scale-110")} />
       {label}
+      {badge > 0 && (
+        <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-brand px-1.5 text-[11px] font-bold text-on-brand" aria-label={`${badge} novidades`}>
+          {badge}
+        </span>
+      )}
     </Link>
   );
 }

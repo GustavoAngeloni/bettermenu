@@ -12,6 +12,14 @@ export function SuperHeader({ name }: { name: string }) {
           <BetterMenuLogo />
         </Link>
         <span className="hidden rounded-full bg-violet-100 px-2.5 py-1 text-xs font-bold text-violet-800 sm:inline">Super Admin</span>
+        <nav className="flex items-center gap-1 text-sm font-semibold">
+          <Link href="/super" className="rounded-full px-3 py-1.5 text-muted transition hover:bg-surface-2 hover:text-ink">
+            Restaurantes
+          </Link>
+          <Link href="/super/aprender" className="rounded-full px-3 py-1.5 text-muted transition hover:bg-surface-2 hover:text-ink">
+            Aprendizado
+          </Link>
+        </nav>
         <span className="flex-1" />
         <ByInsight className="hidden md:inline-flex" />
         <span className="hidden h-6 w-px bg-line md:block" />

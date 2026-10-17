@@ -16,6 +16,9 @@ export function SiteHeader() {
         </Link>
         <span className="flex-1" />
         <nav aria-label="Principal" className="hidden items-center gap-6 text-sm font-semibold text-muted md:flex">
+          <Link href="/planos" className="transition hover:text-ink">
+            Planos
+          </Link>
           <Link href="/cardapio-digital" className="transition hover:text-ink">
             Cardápio digital
           </Link>

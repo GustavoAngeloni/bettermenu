@@ -1,6 +1,7 @@
 import { ChevronRight, Plus } from "lucide-react";
 import Link from "next/link";
 import { Badge } from "@/components/ui";
+import { SUBSCRIPTION_STATUS } from "@/lib/billing";
 import { requireSuperadmin } from "@/lib/auth";
 import { cn } from "@/lib/cn";
 import { formatBRL } from "@/lib/money";
@@ -17,6 +18,7 @@ export default async function SuperPage() {
   const { profile } = await requireSuperadmin();
   const db = createAdminClient();
   const since = daysAgoIso(30);
+  const { data: subscriptions } = await db.from("subscriptions").select("*").order("created_at", { ascending: false }).limit(30);
   const [{ data: restaurants }, { data: tables }, { data: items }, { data: open }] = await Promise.all([
     db.from("restaurants").select("*").order("created_at", { ascending: false }),
     db.from("tables").select("restaurant_id").eq("active", true),
@@ -101,6 +103,51 @@ export default async function SuperPage() {
               </tbody>
             </table>
           </div>
+        </section>
+
+        <section>
+          <h2 className="mb-3 text-xl font-bold">Assinaturas pelo checkout ({subscriptions?.length ?? 0})</h2>
+          {!subscriptions?.length ? (
+            <p className="rounded-2xl border border-dashed border-line p-6 text-sm text-muted">Nenhuma assinatura pelo site ainda. O link de venda é /planos.</p>
+          ) : (
+            <div className="overflow-x-auto rounded-[1.4rem] border border-line bg-surface">
+              <table className="w-full text-sm">
+                <thead className="bg-surface-2 text-left text-xs text-muted">
+                  <tr>
+                    <th className="px-4 py-3 font-medium">Restaurante</th>
+                    <th className="px-4 py-3 font-medium">Plano</th>
+                    <th className="px-4 py-3 font-medium">Valor</th>
+                    <th className="px-4 py-3 font-medium">Status</th>
+                    <th className="px-4 py-3 font-medium">Próxima cobrança</th>
+                    <th className="px-4 py-3 font-medium">Contato</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-line">
+                  {(subscriptions as { id: string; restaurant_id: string | null; restaurant_name: string | null; plan: string; cycle: string; amount_cents: number; status: string; next_payment_date: string | null; payer_email: string; phone: string | null }[]).map((s) => (
+                    <tr key={s.id}>
+                      <td className="px-4 py-3 font-semibold">
+                        {s.restaurant_id ? <Link href={`/super/${s.restaurant_id}`} className="hover:text-brand-fg">{s.restaurant_name ?? "—"}</Link> : (s.restaurant_name ?? "—")}
+                      </td>
+                      <td className="px-4 py-3">
+                        {planLabel(s.plan)} · {s.cycle}
+                      </td>
+                      <td className="px-4 py-3 tabular-nums">{formatBRL(s.amount_cents)}</td>
+                      <td className="px-4 py-3">
+                        <Badge className={s.status === "authorized" ? "bg-emerald-100 text-emerald-800" : s.status === "cancelled" || s.status === "failed" ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-800"}>
+                          {SUBSCRIPTION_STATUS[s.status]?.label ?? s.status}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-3">{s.next_payment_date ? new Date(s.next_payment_date).toLocaleDateString("pt-BR") : "—"}</td>
+                      <td className="px-4 py-3 text-muted">
+                        {s.payer_email}
+                        {s.phone && <div className="text-xs">{s.phone}</div>}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </section>
 
         <details className="group">
