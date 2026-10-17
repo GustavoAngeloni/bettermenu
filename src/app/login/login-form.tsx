@@ -47,6 +47,9 @@ export function LoginForm({ defaults, compact }: { defaults?: { restaurant?: str
           </button>
         </span>
       </Field>
+      <a href="/recuperar-senha" className="-mt-1 block text-right text-sm font-semibold text-brand-fg hover:underline">
+        Esqueci minha senha
+      </a>
       {error && <p className="rounded-xl bg-red-50 px-3.5 py-2.5 text-sm text-red-700 animate-fade-in">{error}</p>}
       <Button type="submit" size="lg" className="group w-full" disabled={pending}>
         {pending ? (

@@ -564,3 +564,24 @@ create policy learning_select on learning_items for select to authenticated
 drop policy if exists learning_write on learning_items;
 create policy learning_write on learning_items for all to authenticated
   using (is_superadmin()) with check (is_superadmin());
+
+-- =====================================================================
+-- v6 — e-mails (Resend): contato da equipe e links de senha
+-- (aditivo e idempotente: pode rodar de novo sem perder dados)
+-- =====================================================================
+
+-- E-mail de contato de cada login (o login da equipe usa um e-mail técnico, que não recebe mensagens)
+alter table profiles add column if not exists contact_email text;
+
+-- Links de uso único: redefinir senha e criar senha no convite (guardamos só o hash do token)
+create table if not exists password_tokens (
+  id          uuid primary key default gen_random_uuid(),
+  profile_id  uuid not null references profiles(id) on delete cascade,
+  token_hash  text not null unique,
+  purpose     text not null check (purpose in ('reset', 'invite')),
+  expires_at  timestamptz not null,
+  used_at     timestamptz,
+  created_at  timestamptz not null default now()
+);
+create index if not exists password_tokens_profile_idx on password_tokens (profile_id);
+alter table password_tokens enable row level security; -- só o servidor (service role) acessa

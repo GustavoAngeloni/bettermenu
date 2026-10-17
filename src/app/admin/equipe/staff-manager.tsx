@@ -44,7 +44,7 @@ export function StaffManager({ staff, me, slug, sectors }: { staff: Profile[]; m
         </p>
       )}
 
-      <form ref={formRef} action={action} className="grid gap-3 rounded-[1.4rem] border border-line bg-surface p-4 sm:grid-cols-2 lg:grid-cols-5 lg:items-end">
+      <form ref={formRef} action={action} className="grid gap-3 rounded-[1.4rem] border border-line bg-surface p-4 sm:grid-cols-2 lg:grid-cols-3 lg:items-end">
         <Field label="Nome">
           <input name="name" className={inputClass} placeholder="João Silva" required />
         </Field>
@@ -53,6 +53,9 @@ export function StaffManager({ staff, me, slug, sectors }: { staff: Profile[]; m
         </Field>
         <Field label="Senha">
           <input name="password" className={inputClass} placeholder="mín. 6 caracteres" required minLength={6} />
+        </Field>
+        <Field label="E-mail (opcional)">
+          <input name="email" type="email" className={inputClass} placeholder="joao@email.com" autoCapitalize="none" />
         </Field>
         <Field label="Função">
           <select name="role" className={inputClass} defaultValue="waiter">
@@ -66,7 +69,8 @@ export function StaffManager({ staff, me, slug, sectors }: { staff: Profile[]; m
         <Button type="submit" disabled={pending}>
           {pending ? <Spinner /> : <UserPlus className="size-4" />} Adicionar
         </Button>
-        {result && result !== "ok" && <p className="text-sm text-red-600 dark:text-red-400 sm:col-span-2 lg:col-span-5">{result}</p>}
+        <p className="text-xs text-muted sm:col-span-2 lg:col-span-3">Com e-mail, a pessoa recebe os dados de acesso e consegue recuperar a senha sozinha.</p>
+        {result && result !== "ok" && <p className="text-sm text-red-600 dark:text-red-400 sm:col-span-2 lg:col-span-3">{result}</p>}
       </form>
 
       <div className="divide-y divide-line overflow-hidden rounded-[1.4rem] border border-line bg-surface">

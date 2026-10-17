@@ -26,6 +26,7 @@ export async function provisionRestaurant(input: {
   ownerName: string;
   ownerUsername: string;
   ownerPassword: string;
+  ownerEmail?: string | null;
   tables?: number;
   serviceFeePct?: number;
   features?: Record<string, boolean>;
@@ -61,6 +62,7 @@ export async function provisionRestaurant(input: {
     username: input.ownerUsername,
     password: input.ownerPassword,
     role: "owner",
+    contactEmail: input.ownerEmail,
   });
   if (ownerError) {
     await db.from("restaurants").delete().eq("id", restaurant.id);

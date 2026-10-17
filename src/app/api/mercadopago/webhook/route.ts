@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAuthorizedPayment, verifyWebhook } from "@/lib/billing";
-import { refreshFromMercadoPago } from "@/lib/subscriptions";
+import { notifyRenewal, refreshFromMercadoPago } from "@/lib/subscriptions";
 
 // Notificações do Mercado Pago (Assinaturas). Configure a URL no painel do Mercado Pago:
 //   https://SEU-DOMINIO/api/mercadopago/webhook  — tópicos "Planos e assinaturas".
@@ -23,7 +23,11 @@ export async function POST(req: Request) {
     } else if (type === "subscription_authorized_payment" || type === "authorized_payment") {
       const payment = await getAuthorizedPayment(dataId);
       const approved = payment.payment?.status === "approved" || payment.status === "processed";
-      if (payment.preapproval_id) await refreshFromMercadoPago(payment.preapproval_id, { paid: approved });
+      const rejected = payment.payment?.status === "rejected";
+      if (payment.preapproval_id) {
+        await refreshFromMercadoPago(payment.preapproval_id, { paid: approved });
+        if (approved || rejected) await notifyRenewal(payment.preapproval_id, String(payment.id), approved);
+      }
     }
   } catch (e) {
     console.error("[mercadopago] webhook", type, dataId, e);

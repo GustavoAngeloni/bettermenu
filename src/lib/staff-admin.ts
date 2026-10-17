@@ -24,6 +24,8 @@ export async function createStaffUser(input: {
   username: string;
   password: string;
   role: StaffRole;
+  /** e-mail real da pessoa (recebe convite e recuperação de senha) */
+  contactEmail?: string | null;
 }): Promise<string | null> {
   const username = normalizeUsername(input.username);
   if (!input.name.trim()) return "Informe o nome";
@@ -52,6 +54,9 @@ export async function createStaffUser(input: {
     await db.auth.admin.deleteUser(data.user.id);
     return profileError.message;
   }
+  const contact = input.contactEmail?.trim().toLowerCase();
+  // coluna do schema v6; sem a migração, o login é criado do mesmo jeito
+  if (contact && /^\S+@\S+\.\S+$/.test(contact)) await db.from("profiles").update({ contact_email: contact }).eq("id", data.user.id);
   return null;
 }
 

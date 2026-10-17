@@ -9,7 +9,7 @@ export const metadata = { title: "Entrar" };
 const PHOTOS = ["1600891964092-4316c288032e", "1571877227200-a0d98ea607e9", "1514362545857-3bc16c4c7d1b", "1625944525533-473f1a3d54e7", "1563379926898-05f4575a45d8", "1512621776951-a57141f2eefd"];
 
 export default async function LoginPage({ searchParams }: PageProps<"/login">) {
-  const { erro, codigo, usuario } = await searchParams;
+  const { erro, codigo, usuario, senha } = await searchParams;
   const staff = await getStaff();
 
   // Só redireciona quem tem para onde ir. Se o restaurante foi desativado,
@@ -62,6 +62,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
           <h2 className="font-display text-4xl font-semibold tracking-tight">Bem-vindo de volta</h2>
           <p className="mt-2 text-muted">Acesso da equipe do restaurante.</p>
           {notice && <p className="mt-6 rounded-2xl bg-amber-50 p-4 text-sm text-amber-900">{notice}</p>}
+          {senha === "ok" && <p className="mt-6 rounded-2xl bg-emerald-50 p-4 text-sm text-emerald-900">Senha salva! Entre com a nova senha.</p>}
           {/* Links do e-mail de boas-vindas: /login?codigo=...&usuario=... chegam preenchidos */}
           <LoginForm defaults={{ restaurant: typeof codigo === "string" ? codigo.slice(0, 60) : undefined, username: typeof usuario === "string" ? usuario.slice(0, 30) : undefined }} />
         </div>

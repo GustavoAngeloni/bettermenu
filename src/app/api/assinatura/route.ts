@@ -6,7 +6,9 @@ import { cycleAmountCents, isCycle, isPlanKey } from "@/lib/plans";
 import { freeSlug, provisionRestaurant } from "@/lib/provision";
 import { appUrl } from "@/lib/qr";
 import { normalizeUsername } from "@/lib/staff-admin";
+import { brl, dateBR, EMAIL, firstName, sendTemplate, startOnboarding } from "@/lib/email";
 import { notifyOnboarding } from "@/lib/onboarding";
+import { PLANS, planOf } from "@/lib/plans";
 import { applyPlanToGroup } from "@/lib/subscriptions";
 import { createAdminClient } from "@/lib/supabase/server";
 
@@ -111,6 +113,21 @@ export async function POST(req: Request) {
       await db.from("subscriptions").update({ status: "cancelled", updated_at: new Date().toISOString() }).eq("id", o.id);
     }
     after(() =>
+      sendTemplate(
+        EMAIL.planoAlterado,
+        body.email,
+        {
+          NOME: firstName(staff?.profile.name),
+          RESTAURANTE: upgradeOf.name,
+          PLANO: PLANS[planOf(body.plan)].label,
+          CICLO: body.cycle,
+          VALOR: brl(amount),
+          PROXIMA_COBRANCA: dateBR(pre.next_payment_date),
+        },
+        { idempotencyKey: `plano-${sub.id}` },
+      ),
+    );
+    after(() =>
       notifyOnboarding({
         event: "assinatura.plano_alterado",
         email: body.email,
@@ -138,6 +155,7 @@ export async function POST(req: Request) {
     ownerName: account.ownerName,
     ownerUsername: username,
     ownerPassword: account.password,
+    ownerEmail: body.email,
     tables: 10,
     paidUntil,
   });
@@ -146,7 +164,28 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true, ref: sub.id, status: "authorized", provisionError: created.error });
   }
   await db.from("subscriptions").update({ restaurant_id: created.restaurantId }).eq("id", sub.id);
-  // E-mail de boas-vindas com os acessos (automação externa); o link abre o login já preenchido.
+  // E-mail com os dados de acesso (Resend) + série de boas-vindas (automação no Resend).
+  const loginUrl = `${base}/login?codigo=${encodeURIComponent(slug)}&usuario=${encodeURIComponent(username)}`;
+  after(() =>
+    sendTemplate(
+      EMAIL.acessoLiberado,
+      body.email,
+      {
+        NOME: firstName(account.ownerName),
+        RESTAURANTE: account.restaurantName,
+        PLANO: PLANS[planOf(body.plan)].label,
+        CICLO: body.cycle,
+        VALOR: brl(amount),
+        CODIGO: slug,
+        USUARIO: username,
+        LINK_LOGIN: loginUrl,
+        PROXIMA_COBRANCA: dateBR(pre.next_payment_date),
+      },
+      { idempotencyKey: `acesso-${sub.id}` },
+    ),
+  );
+  after(() => startOnboarding({ email: body.email, firstName: firstName(account.ownerName), restaurant: account.restaurantName, plan: PLANS[planOf(body.plan)].label, loginUrl }));
+  // Aviso opcional para uma automação externa (n8n, Make, Zapier)
   after(() =>
     notifyOnboarding({
       event: "assinatura.aprovada",

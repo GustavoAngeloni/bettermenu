@@ -53,6 +53,30 @@ e, no painel do Mercado Pago, a URL de notificação `https://SEU-DOMINIO/api/me
   com público (dono, gerente, garçom, cozinha) e planos opcionais, fixar no topo e rascunho.
 - Donos e gerentes acessam em **Aprender** (`/admin/aprender`); novidades ainda não vistas aparecem com contador no menu.
 
+## E-mails (Resend)
+
+Todos os e-mails saem pelo [Resend](https://resend.com) usando templates publicados lá (o texto fica em `scripts/emails/templates.mjs`).
+
+| Quando | Template |
+| --- | --- |
+| Pagamento aprovado, conta criada (dados de acesso) | `bm-acesso-liberado` |
+| "Esqueci minha senha" em `/recuperar-senha` (link válido por 1 hora) | `bm-redefinir-senha` |
+| Senha trocada pelo link | `bm-senha-alterada` |
+| Dono cadastra alguém da equipe com e-mail (link para criar a senha, 72 h) | `bm-convite-equipe` |
+| Renovação cobrada / recusada | `bm-pagamento-confirmado` / `bm-pagamento-recusado` |
+| Assinatura cancelada · troca de plano | `bm-assinatura-cancelada` · `bm-plano-alterado` |
+| Boas-vindas nos dias 1, 3 e 7 (automação do Resend, evento `bm.assinatura.aprovada`) | `bm-boas-vindas-1-cardapio`, `-2-qrcodes`, `-3-numeros` |
+
+Publicar ou atualizar no Resend (com o domínio de envio já verificado lá):
+
+```bash
+npm i -g resend-cli && resend login
+npm run emails:sync -- --app-url https://SEU-DOMINIO --from "Better Menu <ola@SEU-DOMINIO>"
+npm run emails:preview   # gera os HTMLs em emails-preview/ para conferir
+```
+
+Na Vercel: `RESEND_API_KEY`, `EMAIL_FROM` e, se quiser, `EMAIL_REPLY_TO`. Sem a chave, o sistema funciona normalmente e só registra no log que o e-mail não foi enviado.
+
 ## Acessibilidade
 
 O cardápio do cliente tem um botão de acessibilidade em todas as telas (`src/app/m/[token]/accessibility.tsx`, preferências em `src/lib/a11y.tsx`):
