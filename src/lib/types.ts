@@ -14,6 +14,10 @@ export interface Restaurant {
   features: Record<string, boolean>;
   plan: string;
   max_tables: number | null;
+  /** limite de estações de preparo do plano (null = ilimitado) */
+  max_stations?: number | null;
+  /** restaurante principal do grupo (unidades do mesmo dono); null = principal/independente */
+  group_id?: string | null;
   paid_until: string | null;
   notes: string | null;
   /** identidade visual; ver lib/branding.ts */
@@ -77,6 +81,8 @@ export interface MenuItem {
   pairs_with: string[];
   translations: Translations;
   stock_qty: number | null;
+  /** custo médio por porção (controle financeiro) */
+  cost_cents?: number | null;
   promo_price_cents: number | null;
   promo_days: number[] | null;
   promo_start: string | null;
@@ -157,6 +163,8 @@ export interface OrderItem {
   cancel_reason: string | null;
   created_by: string | null;
   discount_cents: number;
+  /** custo por unidade no momento do pedido (controle financeiro) */
+  unit_cost_cents?: number | null;
   discount_reason: string | null;
   combo_items: ComboComponent[];
 }

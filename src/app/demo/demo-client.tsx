@@ -5,7 +5,7 @@ import { resolveFeatures } from "@/lib/features";
 import { CustomerApp } from "../m/[token]/customer-app";
 import { createDemoApi, DEMO_MENU, DEMO_RESTAURANT } from "./demo-data";
 
-const features = resolveFeatures(null);
+const features = resolveFeatures(null, "premium");
 
 /** Cardápio de demonstração: mesmo app do cliente, com o "servidor" simulado no navegador. */
 export function DemoClient() {

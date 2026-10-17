@@ -81,10 +81,18 @@ export async function GET(req: Request) {
   }
 
   // Padrão: vendas por prato no período
-  const stats = await loadStats(supabase, restaurant.id, period);
+  const stats = await loadStats(supabase, restaurant.id, period, { finance: features.finance });
+  const fin = features.finance;
   const csv = toCsv(
-    ["Prato", "Quantidade", "Receita (R$)", "Cancelados", "Preparo médio (min)"],
-    stats.ranking.map((r) => [r.name, r.qty, reais(r.revenue), r.cancelled, r.prepMin == null ? "" : Math.round(r.prepMin)]),
+    ["Prato", "Quantidade", "Receita (R$)", ...(fin ? ["Lucro bruto (R$)", "Margem (%)"] : []), "Cancelados", "Preparo médio (min)"],
+    stats.ranking.map((r) => [
+      r.name,
+      r.qty,
+      reais(r.revenue),
+      ...(fin ? [r.profit == null ? "" : reais(r.profit), r.marginPct ?? ""] : []),
+      r.cancelled,
+      r.prepMin == null ? "" : Math.round(r.prepMin),
+    ]),
   );
   return csvResponse(`vendas-${slug}-${period}.csv`, csv);
 }

@@ -91,6 +91,8 @@ export function softwareLd() {
       "Cardápio em português, inglês e espanhol",
       "Identidade visual própria de cada restaurante (white-label)",
       "Painel do dono com faturamento, pratos mais vendidos e avaliações",
+      "Controle financeiro: ticket médio, custo do produto, lucro e margem por prato",
+      "Várias unidades no mesmo login (até 5 restaurantes)",
       "Tela da cozinha com comandas por estação e impressão 80 mm",
       "Compatível com leitores de tela (VoiceOver e TalkBack)",
       "Ouvir o cardápio em voz alta e ditar mensagens",

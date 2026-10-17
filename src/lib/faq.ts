@@ -80,7 +80,7 @@ export const FAQ: Faq[] = [
   {
     group: "Produto",
     q: "Quanto custa o Better Menu?",
-    a: "Há três planos mensais, definidos pelo número de mesas: Essencial (até 10 mesas), Profissional (até 30) e Premium (mesas ilimitadas). Todos incluem cardápio, pedidos, conta dividida e acessibilidade. Fale com a equipe para uma proposta.",
+    a: "Há três planos mensais. Essencial: até 10 mesas, 1 restaurante e 1 estação de preparo, com cardápio digital e avaliações. Profissional: até 30 mesas, 3 restaurantes e 2 estações, com pedido feito pelo próprio cliente e controle financeiro (ticket médio, custo e lucro por prato, caixa). Premium: mesas e estações ilimitadas, até 5 restaurantes, happy hour e cardápio em inglês e espanhol. A acessibilidade vem em todos. Fale com a equipe para uma proposta.",
   },
   {
     group: "Produto",
@@ -91,5 +91,15 @@ export const FAQ: Faq[] = [
     group: "Operação",
     q: "Para que tipo de negócio o Better Menu serve?",
     a: "Restaurantes, bares, pubs, cafés, hamburguerias, pizzarias, bistrôs e qualquer casa com atendimento na mesa, de 1 a centenas de mesas.",
+  },
+  {
+    group: "Operação",
+    q: "Consigo saber quanto lucro em cada prato?",
+    a: "Sim, nos planos Profissional e Premium. Ao cadastrar o prato, o dono informa o custo médio da porção; o painel mostra lucro bruto, margem e custo dos produtos (CMV) no período, os pratos mais lucrativos e os que estão com margem baixa, além do ticket médio por mesa e por pessoa.",
+  },
+  {
+    group: "Produto",
+    q: "Tenho mais de um restaurante. Preciso de várias contas?",
+    a: "Não. No Profissional (até 3 restaurantes) e no Premium (até 5), o dono usa o mesmo login e troca de unidade no topo do painel. Cada unidade tem cardápio, mesas, equipe e números próprios.",
   },
 ];

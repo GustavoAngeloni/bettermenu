@@ -106,6 +106,8 @@ export async function createOrder(input: CreateOrderInput): Promise<{ ok: true; 
       share_mode: shareMode,
       created_by: createdBy,
       combo_items: combo,
+      // custo da porção no momento do pedido (o lucro do passado não muda se o custo mudar)
+      ...(features.finance && menuItem.cost_cents != null ? { unit_cost_cents: menuItem.cost_cents } : {}),
     });
     if (shareMode === "custom") {
       shareRows.push(...shareGuests.map((guest_id) => ({ order_item_id: id, guest_id, restaurant_id: restaurantId })));
@@ -127,7 +129,11 @@ export async function createOrder(input: CreateOrderInput): Promise<{ ok: true; 
   const { error: orderError } = await db
     .from("orders")
     .insert({ id: orderId, restaurant_id: restaurantId, session_id: sessionId, table_id: tableId, guest_id: guestId });
-  const { error: itemsError } = orderError ? { error: orderError } : await db.from("order_items").insert(rows);
+  let { error: itemsError } = orderError ? { error: orderError } : await db.from("order_items").insert(rows);
+  // Banco sem a coluna unit_cost_cents (schema v4 pendente): grava o pedido sem o custo.
+  if (!orderError && itemsError && /unit_cost_cents/.test(itemsError.message)) {
+    ({ error: itemsError } = await db.from("order_items").insert(rows.map(({ unit_cost_cents: _c, ...r }: { unit_cost_cents?: number }) => r)));
+  }
   if (orderError || itemsError) {
     await db.from("orders").delete().eq("id", orderId);
     await Promise.all(consumed.map(([id, q]) => db.rpc("restore_stock", { p_item: id, p_qty: q })));

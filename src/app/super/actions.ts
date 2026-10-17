@@ -5,17 +5,35 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { IMPERSONATE_COOKIE, requireSuperadmin } from "@/lib/auth";
 import { featuresFromForm } from "@/lib/features";
-import { PLANS, type PlanKey } from "@/lib/plans";
+import { PLANS, planOf } from "@/lib/plans";
 import { createStaffUser, slugify } from "@/lib/staff-admin";
 import { createAdminClient } from "@/lib/supabase/server";
 
+/** Limite vindo do formulário; vazio = o limite do plano ("0" ou "-" = ilimitado). */
+function readLimit(form: FormData, field: string, fallback: number | null) {
+  const raw = String(form.get(field) ?? "").trim();
+  if (raw === "") return fallback;
+  if (raw === "-" || raw === "0") return null;
+  return Math.max(1, Number.parseInt(raw) || 1);
+}
+
 function readPlan(form: FormData) {
-  const plan = String(form.get("plan") ?? "profissional") as PlanKey;
-  const validPlan = plan in PLANS ? plan : "profissional";
-  const rawMax = String(form.get("max_tables") ?? "").trim();
-  const max_tables = rawMax === "" ? PLANS[validPlan].maxTables : Math.max(1, Number.parseInt(rawMax) || 1);
-  const paid_until = String(form.get("paid_until") ?? "").trim() || null;
-  return { plan: validPlan, max_tables, paid_until };
+  const plan = planOf(String(form.get("plan") ?? ""));
+  return {
+    plan,
+    max_tables: readLimit(form, "max_tables", PLANS[plan].maxTables),
+    max_stations: readLimit(form, "max_stations", PLANS[plan].maxStations),
+    paid_until: String(form.get("paid_until") ?? "").trim() || null,
+  };
+}
+
+/** Restaurante principal do grupo (ele mesmo, se for independente). */
+const groupRoot = (r: { id: string; group_id?: string | null }) => r.group_id ?? r.id;
+
+/** Estações iniciais: Cozinha e Bar, ou só Cozinha quando o plano permite uma. */
+async function seedStations(restaurantId: string, maxStations: number | null) {
+  const list = maxStations === 1 ? [{ name: "Cozinha", sort: 0 }] : [{ name: "Cozinha", sort: 0 }, { name: "Bar", sort: 1 }];
+  await createAdminClient().from("stations").insert(list.map((s) => ({ ...s, restaurant_id: restaurantId })));
 }
 
 function readFee(form: FormData) {
@@ -27,7 +45,7 @@ export async function createRestaurant(_prev: string | null, form: FormData): Pr
   await requireSuperadmin();
   const name = String(form.get("name") ?? "").trim();
   const slug = slugify(String(form.get("slug") ?? "") || name);
-  const { plan, max_tables, paid_until } = readPlan(form);
+  const { plan, max_tables, max_stations, paid_until } = readPlan(form);
   let tables = Math.min(Math.max(Number.parseInt(String(form.get("tables") ?? "0")) || 0, 0), 200);
   if (max_tables != null) tables = Math.min(tables, max_tables);
   if (!name) return "Informe o nome do restaurante";
@@ -39,7 +57,7 @@ export async function createRestaurant(_prev: string | null, form: FormData): Pr
 
   const { data: restaurant, error } = await db
     .from("restaurants")
-    .insert({ name, slug, service_fee_pct: readFee(form), features: featuresFromForm(form), plan, max_tables, paid_until })
+    .insert({ name, slug, service_fee_pct: readFee(form), features: featuresFromForm(form), plan, max_tables, max_stations, paid_until })
     .select()
     .single();
   if (error || !restaurant) return error?.message ?? "Erro ao criar restaurante";
@@ -58,10 +76,7 @@ export async function createRestaurant(_prev: string | null, form: FormData): Pr
   }
 
   // Ponto de partida: estações padrão e as mesas do salão.
-  await db.from("stations").insert([
-    { restaurant_id: restaurant.id, name: "Cozinha", sort: 0 },
-    { restaurant_id: restaurant.id, name: "Bar", sort: 1 },
-  ]);
+  await seedStations(restaurant.id, max_stations);
   if (tables > 0) {
     await db.from("tables").insert(Array.from({ length: tables }, (_, i) => ({ restaurant_id: restaurant.id, number: i + 1 })));
   }
@@ -74,32 +89,89 @@ export async function updateRestaurant(id: string, _prev: string | null, form: F
   await requireSuperadmin();
   const name = String(form.get("name") ?? "").trim();
   if (!name) return "Informe o nome do restaurante";
-  const { plan, max_tables, paid_until } = readPlan(form);
+  const { plan, max_tables, max_stations, paid_until } = readPlan(form);
   const db = createAdminClient();
 
-  if (max_tables != null) {
-    const { count } = await db.from("tables").select("id", { count: "exact", head: true }).eq("restaurant_id", id).eq("active", true);
-    if ((count ?? 0) > max_tables) {
-      return `O restaurante tem ${count} mesas ativas, acima do limite de ${max_tables}. Remova mesas ou aumente o limite.`;
+  const { data: current } = await db.from("restaurants").select("id, group_id").eq("id", id).single();
+  if (!current) return "Restaurante não encontrado";
+  // Plano e funções valem para o grupo inteiro (principal + unidades).
+  const { data: group } = await db.from("restaurants").select("id").or(`id.eq.${groupRoot(current)},group_id.eq.${groupRoot(current)}`);
+  const ids = ((group ?? []) as { id: string }[]).map((r) => r.id);
+
+  if (ids.length > PLANS[plan].maxRestaurants) {
+    return `O grupo tem ${ids.length} unidades, acima do limite do plano ${PLANS[plan].label} (${PLANS[plan].maxRestaurants}). Desative unidades ou escolha outro plano.`;
+  }
+  for (const rid of ids) {
+    if (max_tables != null) {
+      const { count } = await db.from("tables").select("id", { count: "exact", head: true }).eq("restaurant_id", rid).eq("active", true);
+      if ((count ?? 0) > max_tables) return `Uma unidade tem ${count} mesas ativas, acima do limite de ${max_tables}. Remova mesas ou aumente o limite.`;
+    }
+    if (max_stations != null) {
+      const { count } = await db.from("stations").select("id", { count: "exact", head: true }).eq("restaurant_id", rid);
+      if ((count ?? 0) > max_stations) return `Uma unidade tem ${count} estações, acima do limite de ${max_stations}. Remova estações em Cardápio ou aumente o limite.`;
     }
   }
 
+  const shared = { features: featuresFromForm(form), plan, max_tables, max_stations, paid_until };
   const { error } = await db
     .from("restaurants")
-    .update({
-      name,
-      service_fee_pct: readFee(form),
-      features: featuresFromForm(form),
-      plan,
-      max_tables,
-      paid_until,
-      notes: String(form.get("notes") ?? "").trim() || null,
-    })
+    .update({ ...shared, name, service_fee_pct: readFee(form), notes: String(form.get("notes") ?? "").trim() || null })
     .eq("id", id);
   if (error) return error.message;
+  const others = ids.filter((rid) => rid !== id);
+  if (others.length) await db.from("restaurants").update(shared).in("id", others);
   revalidatePath("/super");
   revalidatePath(`/super/${id}`);
   return "ok";
+}
+
+/** Nova unidade do mesmo dono: herda plano, funções e limites; o dono troca de unidade no painel. */
+export async function createUnit(rootId: string, _prev: string | null, form: FormData): Promise<string | null> {
+  await requireSuperadmin();
+  const db = createAdminClient();
+  const { data: root } = await db.from("restaurants").select("*").eq("id", rootId).single();
+  if (!root) return "Restaurante principal não encontrado";
+  if (root.group_id) return "Crie unidades a partir do restaurante principal";
+  const plan = planOf(root.plan);
+  const { count } = await db.from("restaurants").select("id", { count: "exact", head: true }).or(`id.eq.${root.id},group_id.eq.${root.id}`);
+  if ((count ?? 1) >= PLANS[plan].maxRestaurants) {
+    return `O plano ${PLANS[plan].label} permite ${PLANS[plan].maxRestaurants} restaurante(s). Mude o plano para abrir outra unidade.`;
+  }
+
+  const name = String(form.get("name") ?? "").trim();
+  const slug = slugify(String(form.get("slug") ?? "") || name);
+  if (!name) return "Informe o nome da unidade";
+  if (slug.length < 3) return "Código muito curto (mín. 3 caracteres)";
+  const { data: exists } = await db.from("restaurants").select("id").eq("slug", slug).maybeSingle();
+  if (exists) return `O código "${slug}" já está em uso`;
+
+  const { data: unit, error } = await db
+    .from("restaurants")
+    .insert({
+      name,
+      slug,
+      group_id: root.id,
+      service_fee_pct: root.service_fee_pct,
+      features: root.features,
+      plan: root.plan,
+      max_tables: root.max_tables,
+      max_stations: root.max_stations,
+      paid_until: root.paid_until,
+      branding: root.branding,
+      logo_url: root.logo_url,
+    })
+    .select()
+    .single();
+  if (error || !unit) return error?.message ?? "Erro ao criar unidade";
+
+  await seedStations(unit.id, root.max_stations ?? null);
+  let tables = Math.min(Math.max(Number.parseInt(String(form.get("tables") ?? "0")) || 0, 0), 200);
+  if (root.max_tables != null) tables = Math.min(tables, root.max_tables);
+  if (tables > 0) await db.from("tables").insert(Array.from({ length: tables }, (_, i) => ({ restaurant_id: unit.id, number: i + 1 })));
+
+  revalidatePath("/super");
+  revalidatePath(`/super/${rootId}`);
+  return `ok:${slug}`;
 }
 
 export async function setRestaurantActive(id: string, active: boolean) {

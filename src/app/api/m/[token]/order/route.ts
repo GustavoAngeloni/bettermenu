@@ -8,7 +8,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
   const found = await loadTable(token);
   if (!found) return NextResponse.json({ error: "Mesa não encontrada" }, { status: 404 });
   const { table, restaurant } = found;
-  const features = resolveFeatures(restaurant.features);
+  const features = resolveFeatures(restaurant.features, restaurant.plan);
   if (!features.customer_ordering) return NextResponse.json({ error: "Peça ao garçom" }, { status: 403 });
 
   const me = await currentGuest(token, table.id);

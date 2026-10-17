@@ -46,7 +46,7 @@ export const loadPublicRestaurant = cache(async (slug: string) => {
   if (!/^[a-z0-9-]{1,60}$/.test(slug)) return null;
   const db = createAdminClient();
   const { data } = await db.from("restaurants").select("*").eq("slug", slug).eq("active", true).maybeSingle<Restaurant>();
-  if (!data || !resolveFeatures(data.features).public_page) return null;
+  if (!data || !resolveFeatures(data.features, data.plan).public_page) return null;
   return data;
 });
 
@@ -54,9 +54,9 @@ export const loadPublicRestaurant = cache(async (slug: string) => {
 export async function listPublicRestaurants(): Promise<{ slug: string; created_at: string }[]> {
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY || !process.env.NEXT_PUBLIC_SUPABASE_URL) return [];
   try {
-    const { data } = await createAdminClient().from("restaurants").select("slug, created_at, features").eq("active", true);
-    return ((data ?? []) as { slug: string; created_at: string; features: unknown }[])
-      .filter((r) => resolveFeatures(r.features).public_page)
+    const { data } = await createAdminClient().from("restaurants").select("slug, created_at, features, plan").eq("active", true);
+    return ((data ?? []) as { slug: string; created_at: string; features: unknown; plan: string }[])
+      .filter((r) => resolveFeatures(r.features, r.plan).public_page)
       .map(({ slug, created_at }) => ({ slug, created_at }));
   } catch {
     return [];
@@ -137,7 +137,7 @@ async function menuStats(restaurantId: string) {
 }
 
 export async function loadMenu(restaurant: Restaurant): Promise<PublicMenu> {
-  const features = resolveFeatures(restaurant.features);
+  const features = resolveFeatures(restaurant.features, restaurant.plan);
   const db = createAdminClient();
   const [{ data: categories }, { data: items }, { data: options }, stats] = await Promise.all([
     db.from("categories").select("*").eq("restaurant_id", restaurant.id).order("sort").order("name"),

@@ -8,6 +8,8 @@ import { Badge, Button, cn, Field, inputClass, Sheet, Spinner } from "@/componen
 import type { Features } from "@/lib/features";
 import { DAY_SHORT, describeWindow } from "@/lib/menu-rules";
 import { centsToInput, formatBRL, parseBRL } from "@/lib/money";
+import { margin, MARGIN_CLASS, marginLevel } from "@/lib/finance";
+import { planLabel } from "@/lib/plans";
 import { createClient } from "@/lib/supabase/client";
 import { TAG_LABEL, type Category, type ComboComponent, type ItemOption, type MenuItem, type Station, type Translations } from "@/lib/types";
 
@@ -18,9 +20,11 @@ interface Props {
   items: MenuItem[];
   options: ItemOption[];
   features: Features;
+  maxStations: number | null;
+  plan: string;
 }
 
-export function MenuEditor({ restaurantId, stations, categories, items, options, features }: Props) {
+export function MenuEditor({ restaurantId, stations, categories, items, options, features, maxStations, plan }: Props) {
   const supabase = createClient();
   const router = useRouter();
   const [editing, setEditing] = useState<Partial<MenuItem> | null>(null);
@@ -75,7 +79,7 @@ export function MenuEditor({ restaurantId, stations, categories, items, options,
         </p>
       )}
 
-      <StationsEditor restaurantId={restaurantId} stations={stations} onChanged={() => router.refresh()} />
+      <StationsEditor restaurantId={restaurantId} stations={stations} max={maxStations} plan={plan} onChanged={() => router.refresh()} onError={setError} />
 
       {categories.length === 0 && (
         <div className="rounded-2xl border-2 border-dashed border-line p-10 text-center text-muted">Comece criando uma categoria, como “Entradas” ou “Bebidas”.</div>
@@ -152,6 +156,14 @@ export function MenuEditor({ restaurantId, stations, categories, items, options,
                       {features.stock && item.stock_qty != null && (
                         <Badge className={item.stock_qty <= 5 ? "bg-red-100 text-red-700" : "bg-stone-100 text-stone-700"}>Estoque: {item.stock_qty}</Badge>
                       )}
+                      {features.finance && item.cost_cents != null && (() => {
+                        const m = margin(item.price_cents, item.cost_cents)!;
+                        return (
+                          <Badge className={MARGIN_CLASS[marginLevel(m.pct)]}>
+                            Margem {m.pct}% · lucro {formatBRL(m.profit)}
+                          </Badge>
+                        );
+                      })()}
                       {features.scheduled_menu && item.promo_price_cents != null && (
                         <Badge className="bg-emerald-100 text-emerald-800">Happy hour {formatBRL(item.promo_price_cents)}</Badge>
                       )}
@@ -245,12 +257,28 @@ function IconButton({ children, onClick, label, disabled, danger }: { children: 
   );
 }
 
-function StationsEditor({ restaurantId, stations, onChanged }: { restaurantId: string; stations: Station[]; onChanged: () => void }) {
+function StationsEditor({
+  restaurantId,
+  stations,
+  max,
+  plan,
+  onChanged,
+  onError,
+}: {
+  restaurantId: string;
+  stations: Station[];
+  max: number | null;
+  plan: string;
+  onChanged: () => void;
+  onError: (msg: string) => void;
+}) {
   const supabase = createClient();
+  const full = max != null && stations.length >= max;
   async function add() {
     const name = window.prompt("Nome da estação (ex.: Cozinha, Bar, Sobremesas):");
     if (!name?.trim()) return;
-    await supabase.from("stations").insert({ restaurant_id: restaurantId, name: name.trim(), sort: stations.length });
+    const { error } = await supabase.from("stations").insert({ restaurant_id: restaurantId, name: name.trim(), sort: stations.length });
+    if (error) onError(error.message);
     onChanged();
   }
   async function remove(s: Station) {
@@ -271,10 +299,18 @@ function StationsEditor({ restaurantId, stations, onChanged }: { restaurantId: s
             </button>
           </span>
         ))}
-        <button onClick={add} className="flex items-center gap-1 rounded-full border border-dashed border-line px-3 py-1 text-sm text-brand-fg">
-          <Plus className="size-3.5" /> Estação
-        </button>
+        {!full && (
+          <button onClick={add} className="flex items-center gap-1 rounded-full border border-dashed border-line px-3 py-1 text-sm text-brand-fg">
+            <Plus className="size-3.5" /> Estação
+          </button>
+        )}
       </div>
+      {full && (
+        <p className="mt-3 text-xs text-muted">
+          Seu plano {planLabel(plan)} inclui {max} {max === 1 ? "estação" : "estações"} de preparo. Para separar cozinha, bar e sobremesas em telas diferentes, fale com
+          a insight sobre o plano {max === 1 ? "Profissional" : "Premium"}.
+        </p>
+      )}
     </div>
   );
 }
@@ -440,6 +476,7 @@ function ItemDialog({
   const [pairs, setPairs] = useState<string[]>(item.pairs_with ?? []);
   const [translations, setTranslations] = useState<Translations>(item.translations ?? {});
   const [stock, setStock] = useState(item.stock_qty != null ? String(item.stock_qty) : "");
+  const [cost, setCost] = useState(item.cost_cents != null ? centsToInput(item.cost_cents) : "");
   const [promoPrice, setPromoPrice] = useState(item.promo_price_cents != null ? centsToInput(item.promo_price_cents) : "");
   const [promoDays, setPromoDays] = useState<number[]>(item.promo_days ?? []);
   const [promoStart, setPromoStart] = useState(item.promo_start?.slice(0, 5) ?? "");
@@ -488,10 +525,18 @@ function ItemDialog({
       promo_start: hasPromo ? promoStart : null,
       promo_end: hasPromo ? promoEnd : null,
       combo_items: combo.filter((c) => c.menu_item_id && c.qty > 0),
+      // custo só é gravado quando o plano tem controle financeiro
+      ...(features.finance ? { cost_cents: cost.trim() === "" ? null : parseBRL(cost) } : {}),
     };
-    const { data, error } = item.id
-      ? await supabase.from("menu_items").update(row).eq("id", item.id).select("id").single()
-      : await supabase.from("menu_items").insert(row).select("id").single();
+    const write = (r: typeof row) =>
+      item.id ? supabase.from("menu_items").update(r).eq("id", item.id).select("id").single() : supabase.from("menu_items").insert(r).select("id").single();
+    let { data, error } = await write(row);
+    // Banco sem a coluna cost_cents (schema v4 pendente): salva o resto do prato.
+    if (error && "cost_cents" in row && /cost_cents/.test(error.message)) {
+      const { cost_cents: _omit, ...rest } = row as typeof row & { cost_cents?: number | null };
+      void _omit;
+      ({ data, error } = await write(rest as typeof row));
+    }
     if (error || !data) {
       setSaving(false);
       return setError(error?.message ?? "Erro ao salvar");
@@ -570,6 +615,25 @@ function ItemDialog({
               </select>
             </Field>
           </div>
+          {features.finance && (
+            <div className="rounded-2xl border border-line bg-surface-2/60 p-3">
+              <Field label="Custo do produto (R$)" hint="Quanto você gasta, em média, para fazer uma porção: ingredientes, embalagem, guarnição.">
+                <input className={inputClass} inputMode="decimal" value={cost} onChange={(e) => setCost(e.target.value)} placeholder="Ex.: 32,00" />
+              </Field>
+              {(() => {
+                const m = cost.trim() && price.trim() ? margin(parseBRL(price), parseBRL(cost)) : null;
+                if (!m) return <p className="mt-2 text-xs text-muted">Com o custo, o painel mostra o lucro e a margem de cada venda.</p>;
+                const level = marginLevel(m.pct);
+                return (
+                  <p className={cn("mt-2 rounded-xl px-3 py-2 text-sm font-semibold", MARGIN_CLASS[level])}>
+                    {level === "loss"
+                      ? `Prejuízo de ${formatBRL(-m.profit)} por porção: o custo está acima do preço.`
+                      : `Lucro de ${formatBRL(m.profit)} por porção · margem ${m.pct}% (custo = ${m.cmvPct}% do preço)${level === "low" ? ". Margem baixa." : ""}`}
+                  </p>
+                );
+              })()}
+            </div>
+          )}
           {features.stock && (
             <Field label="Estoque (porções)" hint="Vazio = sem controle. Chegando a 0, o prato fica esgotado sozinho.">
               <input className={inputClass} type="number" min={0} value={stock} onChange={(e) => setStock(e.target.value)} placeholder="Sem controle" />

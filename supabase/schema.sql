@@ -453,3 +453,42 @@ create trigger tables_limit before insert or update of active on tables
 alter table waiter_calls add column if not exists message text check (char_length(message) <= 600);
 -- Como o cliente prefere ser atendido: visao, fala, audicao
 alter table guests add column if not exists access_needs text[] not null default '{}';
+
+-- =====================================================================
+-- v4 — planos contratados: unidades, estações e controle financeiro
+-- (aditivo e idempotente: pode rodar de novo sem perder dados)
+-- =====================================================================
+
+-- Unidades do mesmo dono: aponta para o restaurante principal do grupo (null = principal/independente)
+alter table restaurants add column if not exists group_id uuid references restaurants(id) on delete set null;
+create index if not exists restaurants_group_idx on restaurants (group_id);
+
+-- Limite de estações de preparo (null = ilimitado). Preenchido pelo plano na primeira vez.
+do $$
+begin
+  if not exists (select 1 from information_schema.columns where table_name = 'restaurants' and column_name = 'max_stations') then
+    alter table restaurants add column max_stations int;
+    update restaurants set max_stations = case plan when 'essencial' then 1 when 'premium' then null else 2 end;
+  end if;
+end $$;
+
+create or replace function public.enforce_station_limit() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare lim int; total int;
+begin
+  select max_stations into lim from restaurants where id = new.restaurant_id;
+  if lim is null then return new; end if;
+  select count(*) into total from stations where restaurant_id = new.restaurant_id;
+  if total + 1 > lim then
+    raise exception 'Limite do plano: no máximo % estação(ões) de preparo', lim using errcode = 'P0001';
+  end if;
+  return new;
+end $$;
+
+drop trigger if exists stations_limit on stations;
+create trigger stations_limit before insert on stations
+  for each row execute function public.enforce_station_limit();
+
+-- Custo do produto (controle financeiro): custo médio por porção, e a cópia no pedido
+alter table menu_items  add column if not exists cost_cents      int check (cost_cents >= 0);
+alter table order_items add column if not exists unit_cost_cents int;

@@ -18,7 +18,12 @@ ${PUBLIC_PAGES.map((p) => `- [${p.title}](${absoluteUrl(p.path)}): ${p.summary}`
 - Cliente (QR Code da mesa): cardápio com fotos, pedido pelo celular, acompanhamento do preparo, chamar garçom, pedir a conta, conta dividida por pessoa, avaliação.
 - Garçom: alertas sonoros e no celular bloqueado, mapa de mesas, lançamento de pedidos, transferir e juntar mesas, pagamento por pessoa.
 - Cozinha e bar: comandas por estação (Novos, Em preparo, Prontos), totais por prato, esgotado, impressão em 80 mm.
-- Dono: faturamento, pratos mais vendidos, horários de pico, avaliações, cardápio por horário e happy hour, estoque, combos, equipe, QR Codes, identidade visual, fechamento de caixa e exportação para Excel.
+- Dono: faturamento, ticket médio, custo e lucro por prato, pratos mais vendidos, horários de pico, avaliações, cardápio por horário e happy hour, estoque, combos, equipe, QR Codes, identidade visual, fechamento de caixa e exportação para Excel.
+
+## Planos
+- Essencial: até 10 mesas, 1 restaurante, 1 estação de preparo; cardápio digital, pedidos lançados pelo garçom, avaliações e acessibilidade.
+- Profissional: até 30 mesas, 3 restaurantes, 2 estações; tudo do Essencial + o cliente faz o pedido pelo celular + controle financeiro (ticket médio por mesa e por pessoa, custo do produto, lucro e margem por prato, fechamento de caixa, relatórios em Excel).
+- Premium: mesas e estações ilimitadas, até 5 restaurantes; tudo do Profissional + happy hour e cardápio por horário + cardápio em inglês e espanhol.
 
 ## Acessibilidade
 - Pessoas cegas e com baixa visão: compatível com VoiceOver e TalkBack, "Ouvir o cardápio" (leitura em voz alta de pratos e preços), ditado por voz, texto ampliado até 130%, alto contraste, aviso à equipe com orientações de atendimento.

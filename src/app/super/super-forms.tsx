@@ -5,24 +5,39 @@ import { useActionState, useEffect, useRef, useState, useTransition } from "reac
 import { FeatureChecklist } from "@/components/feature-checklist";
 import { Button, Field, inputClass, Spinner } from "@/components/ui";
 import type { Features } from "@/lib/features";
-import { PLANS, type PlanKey } from "@/lib/plans";
+import { PLANS, planOf, type PlanKey } from "@/lib/plans";
 import type { Restaurant } from "@/lib/types";
-import { createRestaurant, enterAs, setRestaurantActive, updateRestaurant } from "./actions";
+import { createRestaurant, createUnit, enterAs, setRestaurantActive, updateRestaurant } from "./actions";
 
-function PlanFields({ plan: initialPlan = "profissional", maxTables, paidUntil }: { plan?: string; maxTables?: number | null; paidUntil?: string | null }) {
-  const [plan, setPlan] = useState<PlanKey>((initialPlan in PLANS ? initialPlan : "profissional") as PlanKey);
-  const [max, setMax] = useState<string>(maxTables === undefined ? String(PLANS[plan].maxTables ?? "") : String(maxTables ?? ""));
+const limitText = (v: number | null | undefined) => (v == null ? "" : String(v));
+
+function PlanFields({
+  plan,
+  onPlan,
+  maxTables,
+  maxStations,
+  paidUntil,
+}: {
+  plan: PlanKey;
+  onPlan: (p: PlanKey) => void;
+  maxTables?: number | null;
+  maxStations?: number | null;
+  paidUntil?: string | null;
+}) {
+  const [tables, setTables] = useState(maxTables === undefined ? limitText(PLANS[plan].maxTables) : limitText(maxTables));
+  const [stations, setStations] = useState(maxStations === undefined ? limitText(PLANS[plan].maxStations) : limitText(maxStations));
   return (
     <>
-      <Field label="Plano">
+      <Field label="Plano" hint={`Até ${PLANS[plan].maxRestaurants} restaurante(s) no grupo`}>
         <select
           name="plan"
           className={inputClass}
           value={plan}
           onChange={(e) => {
             const p = e.target.value as PlanKey;
-            setPlan(p);
-            setMax(String(PLANS[p].maxTables ?? ""));
+            onPlan(p);
+            setTables(limitText(PLANS[p].maxTables));
+            setStations(limitText(PLANS[p].maxStations));
           }}
         >
           {(Object.keys(PLANS) as PlanKey[]).map((p) => (
@@ -33,7 +48,10 @@ function PlanFields({ plan: initialPlan = "profissional", maxTables, paidUntil }
         </select>
       </Field>
       <Field label="Limite de mesas" hint="Vazio = ilimitado">
-        <input name="max_tables" type="number" min={1} className={inputClass} value={max} onChange={(e) => setMax(e.target.value)} />
+        <input name="max_tables" type="number" min={1} className={inputClass} value={tables} onChange={(e) => setTables(e.target.value)} placeholder="Ilimitado" />
+      </Field>
+      <Field label="Estações de preparo" hint="Vazio = ilimitado">
+        <input name="max_stations" type="number" min={1} className={inputClass} value={stations} onChange={(e) => setStations(e.target.value)} placeholder="Ilimitado" />
       </Field>
       <Field label="Pago até">
         <input name="paid_until" type="date" className={inputClass} defaultValue={paidUntil ?? ""} />
@@ -47,6 +65,7 @@ export function CreateRestaurantForm() {
   const formRef = useRef<HTMLFormElement>(null);
   const created = result?.startsWith("ok:") ? result.slice(3) : null;
   const [formKey, setFormKey] = useState(0);
+  const [plan, setPlan] = useState<PlanKey>("profissional");
 
   useEffect(() => {
     if (created) {
@@ -74,8 +93,8 @@ export function CreateRestaurantForm() {
         </Field>
       </div>
 
-      <div className="grid gap-4 border-t border-line pt-4 md:grid-cols-3">
-        <PlanFields />
+      <div className="grid gap-4 border-t border-line pt-4 md:grid-cols-4">
+        <PlanFields plan={plan} onPlan={setPlan} />
       </div>
 
       <div className="grid gap-4 border-t border-line pt-4 md:grid-cols-3">
@@ -92,8 +111,8 @@ export function CreateRestaurantForm() {
 
       <div className="border-t border-line pt-4">
         <div className="mb-1 font-semibold">Funções do restaurante</div>
-        <p className="mb-3 text-sm text-muted">Desmarque o que o dono não quer usar. Dá para mudar depois.</p>
-        <FeatureChecklist />
+        <p className="mb-3 text-sm text-muted">Desmarque o que o dono não quer usar. Funções com selo dependem do plano.</p>
+        <FeatureChecklist plan={plan} />
       </div>
 
       <div className="flex items-center gap-4">
@@ -113,6 +132,7 @@ export function CreateRestaurantForm() {
 
 export function EditRestaurantForm({ restaurant, features }: { restaurant: Restaurant; features: Features }) {
   const [result, action, pending] = useActionState(updateRestaurant.bind(null, restaurant.id), null);
+  const [plan, setPlan] = useState<PlanKey>(planOf(restaurant.plan));
   return (
     <form action={action} className="space-y-5 rounded-[1.4rem] border border-line bg-surface p-5">
       <div className="grid gap-4 md:grid-cols-3">
@@ -125,14 +145,17 @@ export function EditRestaurantForm({ restaurant, features }: { restaurant: Resta
         <Field label="Taxa de serviço (%)">
           <input name="fee" className={inputClass} defaultValue={String(restaurant.service_fee_pct).replace(".", ",")} inputMode="decimal" />
         </Field>
-        <PlanFields plan={restaurant.plan} maxTables={restaurant.max_tables} paidUntil={restaurant.paid_until} />
+      </div>
+      <div className="grid gap-4 md:grid-cols-4">
+        <PlanFields plan={plan} onPlan={setPlan} maxTables={restaurant.max_tables} maxStations={restaurant.max_stations ?? null} paidUntil={restaurant.paid_until} />
       </div>
       <Field label="Anotações internas" hint="Só você vê (contato, condições comerciais...)">
         <textarea name="notes" rows={2} className={inputClass} defaultValue={restaurant.notes ?? ""} />
       </Field>
       <div className="border-t border-line pt-4">
-        <div className="mb-3 font-semibold">Funções do restaurante</div>
-        <FeatureChecklist initial={features} />
+        <div className="mb-1 font-semibold">Funções do restaurante</div>
+        <p className="mb-3 text-sm text-muted">Plano, limites e funções valem para todas as unidades do grupo.</p>
+        <FeatureChecklist initial={features} plan={plan} />
       </div>
       <div className="flex items-center gap-4">
         <Button type="submit" disabled={pending}>
@@ -168,5 +191,29 @@ export function EnterAsButton({ id }: { id: string }) {
     <Button size="sm" disabled={pending} onClick={() => start(() => enterAs(id))}>
       {pending ? <Spinner /> : <LogIn className="size-4" />} Entrar como dono
     </Button>
+  );
+}
+
+/** Nova unidade do mesmo dono (até o limite do plano). */
+export function CreateUnitForm({ rootId }: { rootId: string }) {
+  const [result, action, pending] = useActionState(createUnit.bind(null, rootId), null);
+  const created = result?.startsWith("ok:") ? result.slice(3) : null;
+  return (
+    <form action={action} className="grid gap-4 rounded-2xl border border-dashed border-line p-4 md:grid-cols-[1fr_1fr_8rem_auto] md:items-end">
+      <Field label="Nome da unidade">
+        <input name="name" className={inputClass} placeholder="Brasa & Vinho · Pinheiros" required />
+      </Field>
+      <Field label="Código (login da equipe)" hint="Vazio = gerado do nome">
+        <input name="slug" className={inputClass} autoCapitalize="none" />
+      </Field>
+      <Field label="Mesas">
+        <input name="tables" type="number" min={0} max={200} className={inputClass} defaultValue="10" />
+      </Field>
+      <Button type="submit" disabled={pending}>
+        {pending ? <Spinner /> : "Criar unidade"}
+      </Button>
+      {created && <p className="text-sm text-emerald-700 md:col-span-4">Unidade criada (código {created}). O dono troca de unidade no topo do painel.</p>}
+      {result && !created && <p className="text-sm text-red-600 md:col-span-4 dark:text-red-400">{result}</p>}
+    </form>
   );
 }

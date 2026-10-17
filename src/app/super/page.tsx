@@ -60,16 +60,22 @@ export default async function SuperPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-line">
-                {((restaurants ?? []) as Restaurant[]).map((r) => {
+                {(() => {
+                  // Unidades logo abaixo do restaurante principal do grupo
+                  const list = (restaurants ?? []) as Restaurant[];
+                  const roots = list.filter((r) => !r.group_id || !list.some((x) => x.id === r.group_id));
+                  return roots.flatMap((root) => [root, ...list.filter((u) => u.group_id === root.id)]);
+                })().map((r) => {
                   const overdue = r.paid_until && r.paid_until < today;
                   return (
                     <tr key={r.id} className={cn("hover:bg-surface-2", !r.active && "opacity-50")}>
                       <td className="px-4 py-3">
-                        <Link href={`/super/${r.id}`} className="font-semibold hover:text-brand-fg">
+                        <Link href={`/super/${r.id}`} className={cn("font-semibold hover:text-brand-fg", r.group_id && "pl-4 before:mr-1.5 before:text-muted before:content-['↳']")}>
                           {r.name}
                         </Link>
-                        <div className="text-xs text-muted">
+                        <div className={cn("text-xs text-muted", r.group_id && "pl-4")}>
                           <code>{r.slug}</code>
+                          {r.group_id && " · unidade"}
                           {!r.active && " · desativado"}
                         </div>
                       </td>

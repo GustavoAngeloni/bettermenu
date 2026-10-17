@@ -23,6 +23,8 @@ export default async function MenuPage() {
       items={(items ?? []) as MenuItem[]}
       options={(options ?? []) as ItemOption[]}
       features={features}
+      maxStations={restaurant.max_stations ?? null}
+      plan={restaurant.plan}
     />
   );
 }

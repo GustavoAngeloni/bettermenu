@@ -15,7 +15,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
   const type = body.type === "bill" ? "bill" : "waiter";
   // Mensagem escrita (cliente que não fala ou não ouve): frase pronta ou texto livre.
   const message = typeof body.message === "string" ? body.message.trim().replace(/\s+/g, " ").slice(0, 280) : "";
-  const features = resolveFeatures(found.restaurant.features);
+  const features = resolveFeatures(found.restaurant.features, found.restaurant.plan);
   if (!features[type === "bill" ? "request_bill" : "call_waiter"]) {
     return NextResponse.json({ error: "Função indisponível neste restaurante" }, { status: 403 });
   }

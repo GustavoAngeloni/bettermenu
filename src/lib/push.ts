@@ -21,8 +21,8 @@ function configure() {
 export async function notifyFloor(restaurantId: string, tableId: string | null, payload: { title: string; body: string; tag?: string }) {
   if (!configure()) return;
   const db = createAdminClient();
-  const { data: restaurant } = await db.from("restaurants").select("features").eq("id", restaurantId).single();
-  if (!resolveFeatures(restaurant?.features).push) return;
+  const { data: restaurant } = await db.from("restaurants").select("features, plan").eq("id", restaurantId).single();
+  if (!resolveFeatures(restaurant?.features, restaurant?.plan).push) return;
 
   const [{ data: subs }, { data: table }] = await Promise.all([
     db

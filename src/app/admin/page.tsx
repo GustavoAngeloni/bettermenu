@@ -1,8 +1,9 @@
-import { Download, Star } from "lucide-react";
+import { BadgeDollarSign, Download, Lock, Star, TrendingUp } from "lucide-react";
 import Link from "next/link";
 import { PageHeader } from "@/components/ui";
 import { cn } from "@/lib/cn";
 import { requireStaff } from "@/lib/auth";
+import { MARGIN_CLASS, marginLevel } from "@/lib/finance";
 import { formatBRL } from "@/lib/money";
 import { loadStats, PERIODS, type Period, type Stats } from "@/lib/stats";
 import { createClient } from "@/lib/supabase/server";
@@ -23,9 +24,10 @@ export default async function DashboardPage({ searchParams }: PageProps<"/admin"
   const period: Period = typeof raw === "string" && raw in PERIODS ? (raw as Period) : "7d";
   const supabase = await createClient();
   const [stats, { data: menu }] = await Promise.all([
-    loadStats(supabase, restaurant.id, period),
-    supabase.from("menu_items").select("name").eq("restaurant_id", restaurant.id).eq("available", true),
+    loadStats(supabase, restaurant.id, period, { finance: features.finance }),
+    supabase.from("menu_items").select("*").eq("restaurant_id", restaurant.id).eq("available", true),
   ]);
+  const withoutCost = ((menu ?? []) as { name: string; cost_cents?: number | null }[]).filter((m) => m.cost_cents == null).map((m) => m.name);
 
   // Pratos do cardápio que não venderam nada no período
   const soldNames = new Set(stats.ranking.filter((r) => r.qty > 0).map((r) => r.name));
@@ -35,8 +37,13 @@ export default async function DashboardPage({ searchParams }: PageProps<"/admin"
   const hour = Number(new Intl.DateTimeFormat("pt-BR", { hour: "numeric", hour12: false, timeZone: "America/Sao_Paulo" }).format(new Date()));
   const greeting = hour < 12 ? "Bom dia" : hour < 18 ? "Boa tarde" : "Boa noite";
   const metrics = [
-    { label: "Ticket médio por mesa", value: formatBRL(stats.ticketPerTable) },
-    { label: "Ticket médio por pessoa", value: formatBRL(stats.ticketPerGuest) },
+    // Ticket médio faz parte do controle financeiro (plano Profissional ou Premium)
+    ...(features.finance
+      ? [
+          { label: "Ticket médio por mesa", value: formatBRL(stats.ticketPerTable), sub: "quanto cada mesa gasta" },
+          { label: "Ticket médio por pessoa", value: formatBRL(stats.ticketPerGuest) },
+        ]
+      : []),
     { label: "Itens vendidos", value: String(stats.itemsSold), sub: stats.cancelledCount ? `${stats.cancelledCount} cancelados` : undefined },
     { label: "Tempo de preparo", value: fmtMin(stats.avgPrepMin), sub: "do pedido até ficar pronto" },
     { label: "Resposta ao chamado", value: fmtMin(stats.avgCallMin), sub: "até o garçom atender" },
@@ -126,8 +133,10 @@ export default async function DashboardPage({ searchParams }: PageProps<"/admin"
         </dl>
       </section>
 
+      {features.finance ? <FinancePanel stats={stats} withoutCost={withoutCost} periodLabel={periodLabel} /> : <FinanceLocked />}
+
       <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
-        <Ranking ranking={stats.ranking} />
+        <Ranking ranking={stats.ranking} finance={features.finance} />
         <div className="space-y-6">
           <Heatmap heat={stats.heat} />
           <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
@@ -269,7 +278,7 @@ function Heatmap({ heat }: { heat: number[][] }) {
   );
 }
 
-function Ranking({ ranking }: { ranking: Stats["ranking"] }) {
+function Ranking({ ranking, finance }: { ranking: Stats["ranking"]; finance: boolean }) {
   const sold = ranking.filter((r) => r.qty > 0);
   const max = Math.max(...sold.map((r) => r.revenue), 1);
   return (
@@ -284,6 +293,7 @@ function Ranking({ ranking }: { ranking: Stats["ranking"] }) {
                 <th className="pb-2 font-medium">Prato</th>
                 <th className="pb-2 text-right font-medium">Qtd</th>
                 <th className="pb-2 pl-4 font-medium">Receita</th>
+                {finance && <th className="pb-2 pl-3 text-right font-medium">Lucro</th>}
                 <th className="pb-2 text-right font-medium">Preparo</th>
               </tr>
             </thead>
@@ -295,14 +305,26 @@ function Ranking({ ranking }: { ranking: Stats["ranking"] }) {
                     {r.cancelled > 0 && <span className="ml-1 text-xs text-red-600 dark:text-red-400">({r.cancelled} canc.)</span>}
                   </td>
                   <td className="py-2 text-right tabular-nums">{r.qty}</td>
-                  <td className="w-2/5 py-2 pl-4">
+                  <td className="py-2 pl-4 sm:w-2/5">
                     <div className="flex items-center gap-2">
-                      <div className="h-2 flex-1 overflow-hidden rounded-full bg-canvas">
+                      <div className="hidden h-2 flex-1 overflow-hidden rounded-full bg-canvas sm:block">
                         <div className="h-full rounded-full bg-brand" style={{ width: `${(r.revenue / max) * 100}%` }} />
                       </div>
-                      <span className="w-24 text-right tabular-nums">{formatBRL(r.revenue)}</span>
+                      <span className="w-full text-right whitespace-nowrap tabular-nums sm:w-24">{formatBRL(r.revenue)}</span>
                     </div>
                   </td>
+                  {finance && (
+                    <td className="py-2 pl-3 text-right whitespace-nowrap tabular-nums">
+                      {r.profit != null && r.marginPct != null ? (
+                        <>
+                          {formatBRL(r.profit)}
+                          <span className={cn("ml-1.5 rounded-full px-1.5 py-px text-[11px] font-bold", MARGIN_CLASS[marginLevel(r.marginPct)])}>{r.marginPct}%</span>
+                        </>
+                      ) : (
+                        <span className="text-xs text-muted">sem custo</span>
+                      )}
+                    </td>
+                  )}
                   <td className="py-2 pl-3 text-right text-muted tabular-nums">{fmtMin(r.prepMin)}</td>
                 </tr>
               ))}
@@ -311,5 +333,117 @@ function Ranking({ ranking }: { ranking: Stats["ranking"] }) {
         </div>
       )}
     </Card>
+  );
+}
+
+/** Lucro e margem: o que sobra das vendas depois do custo dos produtos. */
+function FinancePanel({ stats, withoutCost, periodLabel }: { stats: Stats; withoutCost: string[]; periodLabel: string }) {
+  const f = stats.finance;
+  const costed = stats.ranking.filter((r) => r.qty > 0 && r.marginPct != null);
+  const attention = [...costed].sort((a, b) => a.marginPct! - b.marginPct!).filter((r) => marginLevel(r.marginPct!) !== "ok").slice(0, 5);
+  const champions = [...costed].sort((a, b) => b.profit! - a.profit!).slice(0, 3);
+  if (f.costedRevenue === 0) {
+    return (
+      <section className="flex flex-col gap-4 rounded-[1.6rem] border border-dashed border-line-strong bg-surface p-6 md:flex-row md:items-center">
+        <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-brand-soft text-brand-fg">
+          <BadgeDollarSign className="size-6" />
+        </span>
+        <div className="flex-1">
+          <h2 className="font-display text-xl font-semibold">Descubra quanto você lucra em cada prato</h2>
+          <p className="mt-1 text-sm text-muted">Informe o custo médio de cada prato no Cardápio. O painel passa a mostrar lucro, margem e os pratos que precisam de atenção.</p>
+        </div>
+        <Link href="/admin/cardapio" className="inline-flex h-11 items-center rounded-xl bg-brand px-5 text-sm font-semibold text-on-brand">
+          Cadastrar custos
+        </Link>
+      </section>
+    );
+  }
+  const cards = [
+    { label: "Vendas com custo", value: formatBRL(f.costedRevenue), sub: `${f.coveragePct}% do faturamento` },
+    { label: "Custo dos produtos (CMV)", value: formatBRL(f.cost), sub: f.costedRevenue ? `${Math.round((f.cost / f.costedRevenue) * 100)}% das vendas` : undefined },
+    { label: "Lucro bruto", value: formatBRL(f.profit), sub: f.marginPct != null ? `margem de ${f.marginPct}%` : undefined, strong: true },
+    { label: "Lucro médio por mesa", value: f.profitPerTable != null ? formatBRL(f.profitPerTable) : "—", sub: "antes de despesas fixas" },
+  ];
+  return (
+    <section className="overflow-hidden rounded-[1.6rem] border border-line bg-surface">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-6 py-4">
+        <h2 className="flex items-center gap-2 font-display text-xl font-semibold">
+          <TrendingUp className="size-5 text-brand-fg" /> Lucro e margem · {periodLabel}
+        </h2>
+        <span className="text-xs text-muted">Lucro bruto = vendas − custo dos produtos (sem aluguel, salários e taxas)</span>
+      </div>
+      <dl className="grid grid-cols-2 lg:grid-cols-4">
+        {cards.map((c) => (
+          <div key={c.label} className={cn("border-b border-line p-5 lg:border-r lg:last:border-r-0", c.strong && "bg-emerald-50")}>
+            <dt className="text-xs font-semibold text-muted">{c.label}</dt>
+            <dd className={cn("mt-1 text-2xl font-bold tracking-tight tabular-nums", c.strong && "text-emerald-800")}>{c.value}</dd>
+            {c.sub && <dd className="mt-0.5 text-xs text-muted">{c.sub}</dd>}
+          </div>
+        ))}
+      </dl>
+      <div className="grid gap-6 p-6 md:grid-cols-3">
+        <div>
+          <h3 className="mb-2 text-sm font-bold">Mais lucrativos</h3>
+          <ul className="space-y-1.5 text-sm">
+            {champions.map((r) => (
+              <li key={r.name} className="flex justify-between gap-3">
+                <span className="truncate">{r.name}</span>
+                <span className="font-semibold tabular-nums">{formatBRL(r.profit!)}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div>
+          <h3 className="mb-2 text-sm font-bold">Precisam de atenção</h3>
+          {attention.length === 0 ? (
+            <p className="text-sm text-muted">Todos os pratos com custo têm margem saudável.</p>
+          ) : (
+            <ul className="space-y-1.5 text-sm">
+              {attention.map((r) => (
+                <li key={r.name} className="flex justify-between gap-3">
+                  <span className="truncate">{r.name}</span>
+                  <span className={cn("rounded-full px-2 py-px text-xs font-bold", MARGIN_CLASS[marginLevel(r.marginPct!)])}>{r.marginPct}%</span>
+                </li>
+              ))}
+            </ul>
+          )}
+          <p className="mt-2 text-xs text-muted">Margem abaixo de 60% (custo acima de 40% do preço) acende o alerta.</p>
+        </div>
+        <div>
+          <h3 className="mb-2 text-sm font-bold">Sem custo cadastrado</h3>
+          {withoutCost.length === 0 ? (
+            <p className="text-sm text-muted">Todos os pratos têm custo. Ótimo!</p>
+          ) : (
+            <>
+              <p className="text-sm text-muted">
+                {withoutCost.slice(0, 4).join(", ")}
+                {withoutCost.length > 4 && ` e mais ${withoutCost.length - 4}`}
+              </p>
+              <Link href="/admin/cardapio" className="mt-2 inline-block text-sm font-semibold text-brand-fg">
+                Completar no Cardápio →
+              </Link>
+            </>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/** Plano sem controle financeiro: mostra o que existe no Profissional. */
+function FinanceLocked() {
+  return (
+    <section className="flex flex-col gap-4 rounded-[1.6rem] border border-line bg-surface p-6 md:flex-row md:items-center">
+      <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-surface-2 text-muted">
+        <Lock className="size-5" />
+      </span>
+      <div className="flex-1">
+        <h2 className="font-display text-xl font-semibold">Controle financeiro</h2>
+        <p className="mt-1 text-sm text-muted">
+          Ticket médio por mesa e por pessoa, custo de cada prato, lucro e margem, fechamento de caixa e relatórios em Excel. Disponível nos planos Profissional e
+          Premium: fale com a insight para ativar.
+        </p>
+      </div>
+    </section>
   );
 }

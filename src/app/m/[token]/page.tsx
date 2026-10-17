@@ -41,7 +41,7 @@ export default async function TablePage({ params }: { params: Promise<{ token: s
           tagline: branding.tagline,
         }}
         menu={menu}
-        features={resolveFeatures(found.restaurant.features)}
+        features={resolveFeatures(found.restaurant.features, found.restaurant.plan)}
         initialState={initialState}
       />
     </BrandScope>

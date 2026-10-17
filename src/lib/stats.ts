@@ -52,11 +52,18 @@ export async function fetchAll<T>(query: (from: number, to: number) => PromiseLi
 
 const avg = (list: number[]) => (list.length ? list.reduce((a, b) => a + b, 0) / list.length : null);
 
-export async function loadStats(supabase: SupabaseClient, restaurantId: string, period: Period) {
+/** Custo atual de cada prato (para pedidos antigos, feitos antes de o custo ser cadastrado). */
+async function currentCosts(supabase: SupabaseClient, restaurantId: string) {
+  const { data, error } = await supabase.from("menu_items").select("id, cost_cents").eq("restaurant_id", restaurantId).not("cost_cents", "is", null);
+  if (error) return new Map<string, number>(); // schema v4 pendente
+  return new Map(((data ?? []) as { id: string; cost_cents: number }[]).map((m) => [m.id, m.cost_cents]));
+}
+
+export async function loadStats(supabase: SupabaseClient, restaurantId: string, period: Period, { finance = false } = {}) {
   const days = PERIODS[period].days;
   const since = periodStart(days).toISOString();
 
-  const [items, sessions, calls, ratings] = await Promise.all([
+  const [items, sessions, calls, ratings, costs] = await Promise.all([
     fetchAll<OrderItem>((a, b) =>
       supabase.from("order_items").select("*").eq("restaurant_id", restaurantId).gte("created_at", since).order("created_at").range(a, b),
     ),
@@ -69,7 +76,10 @@ export async function loadStats(supabase: SupabaseClient, restaurantId: string, 
     fetchAll<{ food: number; service: number; comment: string | null; created_at: string }>((a, b) =>
       supabase.from("ratings").select("food, service, comment, created_at").eq("restaurant_id", restaurantId).gte("created_at", since).order("created_at", { ascending: false }).range(a, b),
     ),
+    finance ? currentCosts(supabase, restaurantId) : Promise.resolve(new Map<string, number>()),
   ]);
+  /** Custo por unidade: o gravado no pedido; senão, o custo atual do prato. */
+  const unitCost = (i: OrderItem) => i.unit_cost_cents ?? (i.menu_item_id ? costs.get(i.menu_item_id) : undefined) ?? null;
 
   const sessionIds = sessions.map((s) => s.id);
   let guestCount = 0;
@@ -105,20 +115,34 @@ export async function loadStats(supabase: SupabaseClient, restaurantId: string, 
   }
 
   // Ranking de pratos
-  const byItem = new Map<string, { name: string; qty: number; revenue: number; prep: number[]; cancelled: number }>();
+  const byItem = new Map<string, { name: string; qty: number; revenue: number; prep: number[]; cancelled: number; cost: number; costedRevenue: number }>();
   for (const i of items) {
     const key = i.menu_item_id ?? i.name;
-    const row = byItem.get(key) ?? { name: i.name, qty: 0, revenue: 0, prep: [], cancelled: 0 };
+    const row = byItem.get(key) ?? { name: i.name, qty: 0, revenue: 0, prep: [], cancelled: 0, cost: 0, costedRevenue: 0 };
     if (i.status === "cancelled") row.cancelled += i.qty;
     else {
       row.qty += i.qty;
       row.revenue += itemTotal(i);
+      const c = unitCost(i);
+      if (c != null) {
+        row.cost += c * i.qty;
+        row.costedRevenue += itemTotal(i);
+      }
       if (i.ready_at) row.prep.push((new Date(i.ready_at).getTime() - new Date(i.created_at).getTime()) / 60000);
     }
     byItem.set(key, row);
   }
   const ranking = [...byItem.values()]
-    .map((r) => ({ name: r.name, qty: r.qty, revenue: r.revenue, cancelled: r.cancelled, prepMin: avg(r.prep) }))
+    .map((r) => ({
+      name: r.name,
+      qty: r.qty,
+      revenue: r.revenue,
+      cancelled: r.cancelled,
+      prepMin: avg(r.prep),
+      // lucro e margem só quando o custo é conhecido
+      profit: r.costedRevenue ? r.costedRevenue - r.cost : null,
+      marginPct: r.costedRevenue ? Math.round(((r.costedRevenue - r.cost) / r.costedRevenue) * 100) : null,
+    }))
     .sort((a, b) => b.revenue - a.revenue);
 
   const prepTimes = sold.filter((i) => i.ready_at).map((i) => (new Date(i.ready_at!).getTime() - new Date(i.created_at).getTime()) / 60000);
@@ -132,9 +156,36 @@ export async function loadStats(supabase: SupabaseClient, restaurantId: string, 
   const reasons = new Map<string, number>();
   for (const c of cancelled) reasons.set(c.cancel_reason || "Sem motivo", (reasons.get(c.cancel_reason || "Sem motivo") ?? 0) + c.qty);
 
+  // Controle financeiro: lucro bruto sobre as vendas que têm custo cadastrado.
+  let cost = 0;
+  let costedRevenue = 0;
+  for (const i of sold) {
+    const c = unitCost(i);
+    if (c == null) continue;
+    cost += c * i.qty;
+    costedRevenue += itemTotal(i);
+  }
+  const profitByDay = new Map<string, number>();
+  for (const i of sold) {
+    const c = unitCost(i);
+    if (c == null) continue;
+    const key = localDay(new Date(i.created_at));
+    profitByDay.set(key, (profitByDay.get(key) ?? 0) + itemTotal(i) - c * i.qty);
+  }
+
   return {
     period,
     revenue,
+    finance: {
+      cost,
+      costedRevenue,
+      profit: costedRevenue - cost,
+      marginPct: costedRevenue ? Math.round(((costedRevenue - cost) / costedRevenue) * 100) : null,
+      /** parte do faturamento que tem custo cadastrado (0 a 100) */
+      coveragePct: revenue ? Math.round((costedRevenue / revenue) * 100) : 0,
+      profitPerTable: sessionsWithOrders && costedRevenue ? Math.round((costedRevenue - cost) / sessionsWithOrders) : null,
+      bestDay: [...profitByDay.entries()].sort((a, b) => b[1] - a[1])[0] ?? null,
+    },
     itemsSold: sold.reduce((s, i) => s + i.qty, 0),
     tablesServed: sessionsWithOrders,
     guests: guestCount,

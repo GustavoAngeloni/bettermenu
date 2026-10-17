@@ -72,7 +72,7 @@ export const getStaff = cache(async (): Promise<StaffContext | null> => {
     }
   }
 
-  return { userId, profile, restaurant, features: resolveFeatures(restaurant?.features), impersonating };
+  return { userId, profile, restaurant, features: resolveFeatures(restaurant?.features, restaurant?.plan), impersonating };
 });
 
 /**

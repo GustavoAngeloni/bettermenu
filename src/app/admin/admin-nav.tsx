@@ -1,12 +1,53 @@
 "use client";
 
-import { BarChart3, BookOpen, ChefHat, ConciergeBell, LogOut, Palette, QrCode, Settings, Users, Wallet } from "lucide-react";
+import { BarChart3, BookOpen, ChefHat, ChevronsUpDown, ConciergeBell, LogOut, Palette, QrCode, Settings, Store, Users, Wallet } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { ReactNode } from "react";
+import { useState, useTransition, type ReactNode } from "react";
 import { BetterMenuMark, ByInsight, RestaurantLogo } from "@/components/brand";
 import { ThemeToggle } from "@/components/theme";
-import { cn } from "@/components/ui";
+import { cn, Spinner } from "@/components/ui";
+
+interface Units {
+  list: { id: string; name: string }[];
+  current: string;
+  switchTo: (id: string) => Promise<string | void>;
+}
+
+/** Troca de unidade (dono com mais de um restaurante no plano). */
+function UnitSwitcher({ units, className }: { units: Units; className?: string }) {
+  const [pending, start] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+  return (
+    <div className={className}>
+      <label className="relative flex items-center gap-2 rounded-xl border border-line bg-surface-2 px-3 py-2 text-sm font-semibold">
+        <Store className="size-4 shrink-0 text-brand-fg" aria-hidden />
+        <span className="sr-only">Unidade</span>
+        <select
+          value={units.current}
+          disabled={pending}
+          onChange={(e) => {
+            const id = e.target.value;
+            setError(null);
+            start(async () => {
+              const err = await units.switchTo(id);
+              if (err) setError(err);
+            });
+          }}
+          className="min-w-0 flex-1 cursor-pointer appearance-none truncate bg-transparent pr-6 outline-none"
+        >
+          {units.list.map((u) => (
+            <option key={u.id} value={u.id}>
+              {u.name}
+            </option>
+          ))}
+        </select>
+        {pending ? <Spinner className="absolute right-2.5 size-4" /> : <ChevronsUpDown className="pointer-events-none absolute right-2.5 size-4 text-muted" aria-hidden />}
+      </label>
+      {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
+    </div>
+  );
+}
 
 const links = [
   { href: "/admin", label: "Visão geral", icon: BarChart3 },
@@ -28,6 +69,7 @@ export function AdminShell({
   user,
   isOwner,
   payments,
+  units,
   logout,
   banner,
   children,
@@ -36,6 +78,7 @@ export function AdminShell({
   user: { name: string; role: string };
   isOwner: boolean;
   payments: boolean;
+  units?: Units;
   logout: () => Promise<void>;
   banner?: ReactNode;
   children: ReactNode;
@@ -57,6 +100,7 @@ export function AdminShell({
               <div className="text-xs text-muted">Painel do restaurante</div>
             </div>
           </div>
+          {units && <UnitSwitcher units={units} className="px-3 pb-4" />}
 
           <nav className="flex-1 space-y-0.5 overflow-y-auto px-3">
             {visible.map((l) => (
@@ -106,6 +150,7 @@ export function AdminShell({
                 </button>
               </form>
             </div>
+            {units && <UnitSwitcher units={units} className="px-4 pb-2" />}
             <nav className="no-scrollbar flex gap-1 overflow-x-auto px-3 pb-2.5">
               {[...visible, ...ops].map((l) => {
                 const active = isActive(l.href);
