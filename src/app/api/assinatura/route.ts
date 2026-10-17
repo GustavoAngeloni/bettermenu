@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { z } from "zod";
 import { getStaff } from "@/lib/auth";
 import { billingConfigured, createPreapproval, ensureMpPlan, MercadoPagoError, updatePreapprovalStatus } from "@/lib/billing";
@@ -6,6 +6,7 @@ import { cycleAmountCents, isCycle, isPlanKey } from "@/lib/plans";
 import { freeSlug, provisionRestaurant } from "@/lib/provision";
 import { appUrl } from "@/lib/qr";
 import { normalizeUsername } from "@/lib/staff-admin";
+import { notifyOnboarding } from "@/lib/onboarding";
 import { applyPlanToGroup } from "@/lib/subscriptions";
 import { createAdminClient } from "@/lib/supabase/server";
 
@@ -109,6 +110,22 @@ export async function POST(req: Request) {
       if (o.mp_preapproval_id) await updatePreapprovalStatus(o.mp_preapproval_id, "cancelled").catch(() => {});
       await db.from("subscriptions").update({ status: "cancelled", updated_at: new Date().toISOString() }).eq("id", o.id);
     }
+    after(() =>
+      notifyOnboarding({
+        event: "assinatura.plano_alterado",
+        email: body.email,
+        name: staff?.profile.name ?? null,
+        phone: body.phone || null,
+        restaurant: upgradeOf.name,
+        plan: body.plan,
+        cycle: body.cycle,
+        amount_cents: amount,
+        restaurant_code: upgradeOf.slug,
+        login_url: `${base}/login?codigo=${encodeURIComponent(upgradeOf.slug)}`,
+        subscription_id: sub.id,
+        next_payment_date: pre.next_payment_date ?? null,
+      }),
+    );
     return NextResponse.json({ ok: true, ref: sub.id, status: "authorized", upgrade: true });
   }
 
@@ -129,5 +146,23 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true, ref: sub.id, status: "authorized", provisionError: created.error });
   }
   await db.from("subscriptions").update({ restaurant_id: created.restaurantId }).eq("id", sub.id);
+  // E-mail de boas-vindas com os acessos (automação externa); o link abre o login já preenchido.
+  after(() =>
+    notifyOnboarding({
+      event: "assinatura.aprovada",
+      email: body.email,
+      name: account.ownerName,
+      phone: body.phone || null,
+      restaurant: account.restaurantName,
+      plan: body.plan,
+      cycle: body.cycle,
+      amount_cents: amount,
+      restaurant_code: slug,
+      username,
+      login_url: `${base}/login?codigo=${encodeURIComponent(slug)}&usuario=${encodeURIComponent(username)}`,
+      subscription_id: sub.id,
+      next_payment_date: pre.next_payment_date ?? null,
+    }),
+  );
   return NextResponse.json({ ok: true, ref: sub.id, status: "authorized", slug, username });
 }

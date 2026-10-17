@@ -5,7 +5,7 @@ import { useActionState, useEffect, useRef, useState } from "react";
 import { Button, Field, inputClass, Spinner } from "@/components/ui";
 import { login } from "./actions";
 
-export function LoginForm() {
+export function LoginForm({ defaults, compact }: { defaults?: { restaurant?: string; username?: string }; compact?: boolean }) {
   const [error, action, pending] = useActionState(login, null);
   const restaurantRef = useRef<HTMLInputElement>(null);
   const [show, setShow] = useState(false);
@@ -14,9 +14,9 @@ export function LoginForm() {
   useEffect(() => {
     try {
       const saved = localStorage.getItem("bm_restaurant");
-      if (saved && restaurantRef.current && !restaurantRef.current.value) restaurantRef.current.value = saved;
+      if (saved && restaurantRef.current && !restaurantRef.current.value && !defaults?.restaurant) restaurantRef.current.value = saved;
     } catch {}
-  }, []);
+  }, [defaults?.restaurant]);
 
   return (
     <form
@@ -26,13 +26,13 @@ export function LoginForm() {
           localStorage.setItem("bm_restaurant", restaurantRef.current?.value ?? "");
         } catch {}
       }}
-      className="mt-8 space-y-4"
+      className={compact ? "space-y-3" : "mt-8 space-y-4"}
     >
       <Field label="Código do restaurante">
-        <input ref={restaurantRef} name="restaurant" className={inputClass} placeholder="ex.: cantina-da-nonna" autoCapitalize="none" />
+        <input ref={restaurantRef} name="restaurant" className={inputClass} placeholder="ex.: cantina-da-nonna" autoCapitalize="none" defaultValue={defaults?.restaurant} />
       </Field>
       <Field label="Usuário">
-        <input name="username" className={inputClass} autoCapitalize="none" autoComplete="username" required />
+        <input name="username" className={inputClass} autoCapitalize="none" autoComplete="username" required defaultValue={defaults?.username} />
       </Field>
       <Field label="Senha">
         <span className="relative block">
@@ -59,7 +59,7 @@ export function LoginForm() {
           </>
         )}
       </Button>
-      <p className="pt-2 text-center text-xs text-muted">Super admin: use seu email no campo usuário.</p>
+      {!compact && <p className="pt-2 text-center text-xs text-muted">Super admin: use seu email no campo usuário.</p>}
     </form>
   );
 }

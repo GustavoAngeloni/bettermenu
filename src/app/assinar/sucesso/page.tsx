@@ -1,4 +1,4 @@
-import { ArrowRight, BookOpen, CheckCircle2, Clock, QrCode, UtensilsCrossed } from "lucide-react";
+import { ArrowRight, BookOpen, CheckCircle2, Clock, Mail, QrCode, UtensilsCrossed } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
@@ -47,6 +47,11 @@ export default async function SuccessPage({ searchParams }: { searchParams: Prom
               <p className="mt-3 max-w-lg text-lg text-muted">
                 Plano {PLANS[planOf(sub.plan)].label} {sub.cycle} · {formatBRL(sub.amount_cents)}/{sub.cycle === "mensal" ? "mês" : "ano"} · {status.label}
               </p>
+              {ok && (
+                <p className="mt-4 flex items-center gap-2 rounded-full bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-800">
+                  <Mail className="size-4" /> Enviamos seus acessos para {sub.payer_email}
+                </p>
+              )}
             </div>
 
             {restaurant && owner ? (
@@ -65,7 +70,7 @@ export default async function SuccessPage({ searchParams }: { searchParams: Prom
                   ))}
                 </dl>
                 <p className="mt-4 text-sm text-white/65">A senha é a que você escolheu no cadastro. Guarde este código: é ele que a sua equipe usa para entrar.</p>
-                <Link href="/login" className="group mt-6 inline-flex h-12 items-center gap-2 rounded-2xl bg-[var(--bm)] px-6 font-semibold text-white">
+                <Link href={`/login?codigo=${encodeURIComponent(restaurant.slug)}&usuario=${encodeURIComponent(owner.username)}`} className="group mt-6 inline-flex h-12 items-center gap-2 rounded-2xl bg-[var(--bm)] px-6 font-semibold text-white">
                   Entrar no painel <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" />
                 </Link>
               </section>

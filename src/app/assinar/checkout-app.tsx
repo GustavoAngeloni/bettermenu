@@ -3,12 +3,13 @@
 import { ArrowLeft, Check, CreditCard, Lock, RefreshCw, ShieldCheck, Store } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { BetterMenuLogo, ByInsight } from "@/components/brand";
 import { CycleToggle } from "@/components/pricing";
-import { ThemeToggle, useTheme } from "@/components/theme";
+import { ThemeToggle } from "@/components/theme";
 import { Button, cn, Field, inputClass, Spinner } from "@/components/ui";
 import { formatBRL } from "@/lib/money";
+import { SecureCardForm, type CardResult } from "./secure-card";
 import { annualSavingsCents, cycleAmountCents, PLAN_KEYS, PLAN_PITCH, PLANS, type Cycle, type PlanKey } from "@/lib/plans";
 
 interface Owner {
@@ -28,19 +29,7 @@ interface Account {
 
 type Step = "dados" | "pagamento";
 
-/** Dados do cartão devolvidos pelo formulário do Mercado Pago (Card Payment Brick). */
-interface CardFormData {
-  token: string;
-  payer?: { email?: string; identification?: { type?: string; number?: string } };
-}
-
-declare global {
-  interface Window {
-    MercadoPago?: new (key: string, opts?: { locale?: string }) => {
-      bricks: () => { create: (kind: string, container: string, settings: unknown) => Promise<{ unmount: () => void }> };
-    };
-  }
-}
+type CardFormData = CardResult;
 
 const usernameFrom = (name: string) =>
   name
@@ -277,7 +266,7 @@ export function CheckoutApp({
               {publicKey === "mock" && process.env.NODE_ENV !== "production" ? (
                 <MockCard amount={amount} onSubmit={subscribe} />
               ) : (
-                <CardBrick key={`${plan}-${cycle}`} publicKey={publicKey} amount={amount} email={acc.email} onSubmit={subscribe} />
+                <SecureCardForm publicKey={publicKey} amount={amount} email={acc.email} submitLabel={upgrade ? "Confirmar novo plano" : "Assinar agora"} onSubmit={subscribe} />
               )}
             </section>
           )}
@@ -381,83 +370,6 @@ function Summary({ plan, cycle, upgrade }: { plan: PlanKey; cycle: Cycle; upgrad
         </div>
       </div>
     </aside>
-  );
-}
-
-/** Formulário de cartão do Mercado Pago (Card Payment Brick) com as cores do Better Menu. */
-function CardBrick({ publicKey, amount, email, onSubmit }: { publicKey: string; amount: number; email: string; onSubmit: (d: CardFormData) => Promise<void> }) {
-  const [mode] = useTheme();
-  const [ready, setReady] = useState(false);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const submitRef = useRef(onSubmit);
-  useEffect(() => {
-    submitRef.current = onSubmit;
-  });
-
-  useEffect(() => {
-    if (!publicKey) return;
-    let ctrl: { unmount: () => void } | null = null;
-    let cancelled = false;
-    const dark = mode === "dark";
-    const start = async () => {
-      if (!window.MercadoPago) {
-        await new Promise<void>((resolve, reject) => {
-          const s = document.createElement("script");
-          s.src = "https://sdk.mercadopago.com/js/v2";
-          s.onload = () => resolve();
-          s.onerror = () => reject(new Error("sdk"));
-          document.head.appendChild(s);
-        });
-      }
-      if (cancelled || !window.MercadoPago) return;
-      const mp = new window.MercadoPago(publicKey, { locale: "pt-BR" });
-      ctrl = await mp.bricks().create("cardPayment", "mp-card-brick", {
-        initialization: { amount: amount / 100, payer: { email } },
-        customization: {
-          paymentMethods: { maxInstallments: 1 },
-          visual: {
-            texts: { formSubmit: "Assinar e pagar" },
-            style: {
-              theme: dark ? "dark" : "default",
-              customVariables: {
-                baseColor: "#e0572b",
-                baseColorFirstVariant: "#c94b22",
-                baseColorSecondVariant: "#b4441f",
-                buttonTextColor: "#ffffff",
-                borderRadiusSmall: "10px",
-                borderRadiusMedium: "14px",
-                borderRadiusLarge: "18px",
-                formBackgroundColor: dark ? "#1f1a17" : "#ffffff",
-                inputBackgroundColor: dark ? "#2a2420" : "#ffffff",
-                fontSizeMedium: "15px",
-              },
-            },
-          },
-        },
-        callbacks: {
-          onReady: () => !cancelled && setReady(true),
-          onSubmit: (data: CardFormData) => submitRef.current(data),
-          onError: () => {},
-        },
-      });
-    };
-    start().catch(() => !cancelled && setLoadError("Não foi possível carregar o formulário de pagamento. Verifique a conexão e recarregue a página."));
-    return () => {
-      cancelled = true;
-      ctrl?.unmount();
-    };
-  }, [publicKey, amount, email, mode]);
-
-  return (
-    <div className="rounded-[1.4rem] border border-line bg-surface p-3 sm:p-5">
-      {!ready && !loadError && (
-        <div className="flex items-center justify-center gap-3 py-16 text-sm text-muted">
-          <Spinner className="size-5" /> Carregando o pagamento seguro...
-        </div>
-      )}
-      {loadError && <p className="p-6 text-sm text-red-700">{loadError}</p>}
-      <div id="mp-card-brick" />
-    </div>
   );
 }
 
